@@ -14,7 +14,7 @@ with open(path.join(HERE, 'README.md'), encoding='utf-8') as f:
 
 # This call to setup() does all the work
 setup(
-    name="explainability-package",
+    name="explainability_package",
     version="0.1.0",
     description="Library with tools for working on explainability",
     #long_description=long_description,
@@ -34,8 +34,9 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Operating System :: OS Independent"
     ],
-    packages=find_packages(include=["explainbility_package", "explainbility_package.*"]),
+    packages=find_packages(include=["explainability-package", "explainability-package.*"]),
     include_package_data=True,
+    package_dir=HERE,
     install_requires=[
         "numpy",
         "pandas",
@@ -43,3 +44,10 @@ setup(
         ],
         python_requires='>=3.6',
 )
+
+
+
+"""from setuptools import setup
+
+setup()
+"""
