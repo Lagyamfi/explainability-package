@@ -1,19 +1,17 @@
 
 # import 3rd party libraries
+import dice_ml
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-
-from sklearn.model_selection import train_test_split
+from dice_ml.utils import helpers  # helper functions
 from sklearn import metrics
-
-import dice_ml
-from dice_ml.utils import helpers # helper functions
+from sklearn.model_selection import train_test_split
 
 
 def prep_data(dataframe: pd.DataFrame,
-                target:str = None, 
-                split:bool = None) -> list[pd.DataFrame, pd.DataFrame]:
+              target: str = None,
+              split: bool = None) -> list[pd.DataFrame, pd.DataFrame]:
 
     """
     separate into labels and training images, 
@@ -21,11 +19,12 @@ def prep_data(dataframe: pd.DataFrame,
     """
 
     labels = dataframe.loc[:, target]
-    input_x = dataframe.iloc[:,1:] / 255.0
-    if split :
+    input_x = dataframe.iloc[:, 1:] / 255.0
+    if split:
         # training and validation split
         train_val_data = train_test_split(input_x, labels,
-                                            stratify=labels, random_state=123, test_size=0.20)
+                                          stratify=labels, random_state=123,
+                                          test_size=0.20)
         return train_val_data
     return (input_x, labels)
 
@@ -38,12 +37,11 @@ def train(train_X, train_Y, learner='classifier'):
     if learner == 'classifier':
         #perform necessary imports
         from sklearn.neural_network import MLPClassifier
-        from sklearn.metrics import classification_report
 
         clf = MLPClassifier(solver='adam',
-                            hidden_layer_sizes=(100,),  
-                            random_state=1, 
-                            verbose=True ) 
+                            hidden_layer_sizes=(100,),
+                            random_state=1,
+                            verbose=True)
         best_model = clf.fit(train_X, train_Y)
 
     return best_model
@@ -60,7 +58,7 @@ def evaluate(x_test, y_test, model=None, return_df=None, conf_mat=None):
         disp = metrics.ConfusionMatrixDisplay.from_predictions(y_test, predictions)
         disp.figure_.suptitle("Confusion Matrix")
     if return_df:
-        return pd.DataFrame(predictions,columns=['predictions'], index=y_test.index)
+        return pd.DataFrame(predictions, columns=['predictions'], index=y_test.index)
 
 
 def get_query(predictions, true_labels, expected, predicted, count=None, dataframe=None):
@@ -69,7 +67,7 @@ def get_query(predictions, true_labels, expected, predicted, count=None, datafra
     """
 
     if dataframe:
-        #test_df = pd.DataFrame([predictions, true_labels], index=true_labels.index).transpose()
+        # test_df = pd.DataFrame([predictions, true_labels], index=true_labels.index).transpose()
         test_df = pd.concat([predictions, true_labels], axis=1)
         test_df.columns = ['predictions', 'true_labels']
         condition = f"(predictions != true_labels) & (true_labels == {expected}) & (predictions == {predicted})"
