@@ -1,3 +1,6 @@
+# import python standard libraries
+import json
+from typing import Optional
 
 # import 3rd party libraries
 import dice_ml
@@ -6,6 +9,7 @@ import numpy as np
 import pandas as pd
 from dice_ml.utils import helpers  # helper functions
 from sklearn import metrics
+from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
 
 
@@ -16,6 +20,20 @@ def prep_data(dataframe: pd.DataFrame,
     """
     separate into labels and training images, 
     and split into train and test sets
+
+    Parameters
+    ----------
+    dataframe : pd.DataFrame
+        dataframe to split
+    target : str
+        name of the target column
+    split : bool
+        split the data into train and test sets
+
+    Returns
+    -------
+    list[pd.DataFrame, pd.DataFrame]
+        train and test sets
     """
 
     labels = dataframe.loc[:, target]
@@ -50,6 +68,26 @@ def train(train_X, train_Y, learner='classifier'):
 def evaluate(x_test, y_test, model=None, return_df=None, conf_mat=None):
     """
     evaluate a model
+
+    Parameters
+    ----------
+    x_test : pd.DataFrame
+        test data
+    y_test : pd.Series
+        test labels
+    model : model
+        model to evaluate
+    return_df : bool
+        return a dataframe of predictions
+    conf_mat : bool
+        return a confusion matrix
+
+    Returns
+    -------
+    pd.DataFrame
+        predictions
+    pd.DataFrame
+        confusion matrix
     """
 
     predictions = model.predict(x_test)
@@ -100,7 +138,7 @@ def prep_data_for_dice(x_test, y_test):
 
 def plotter(ax, data, **param_dict):
     """A helper function to make a graph"""
-    data = data.reshape((28,28))
+    data = data.reshape((28, 28))
     out = ax.imshow(data, **param_dict)
     return out
 
@@ -147,3 +185,43 @@ def plot_digits(data, pca=None, n_rows: int = 4, n_cols: int = 4):
             to_draw = pca.inverse_transform(to_draw)
         ax.imshow(to_draw.reshape(28, 28),
                   cmap='binary', interpolation='nearest')
+
+
+def get_PCA_data(
+    data: pd.DataFrame, 
+    n_components: int = None,
+    pca: Optional[PCA] = None,
+    rename_column: bool = True,
+    return_pca: bool = False,) -> list[pd.DataFrame, Optional[PCA]]:
+    """
+    Get PCA data
+    
+    Parameters
+    ----------
+    data : pd.DataFrame
+        data to transform
+    n_components : int
+        number of components to keep
+    pca : Optional[PCA]
+        PCA object to use
+    rename_column : bool
+        rename columns to PCA0, PCA1, ...
+    return_pca : bool
+        return the PCA object
+
+    Returns
+    -------
+    list[pd.DataFrame, Optional[PCA]]
+        transformed data and PCA object
+    """
+    
+    if pca is None:
+        pca = PCA(n_components=n_components).fit(data)
+    data_pca = pca.transform(data)
+    if rename_column:
+        # rename columns starting with "feature"
+        data_pca = pd.DataFrame(data_pca, columns=[f"PCA_{i}" for i in range(data_pca.shape[1])])
+    if return_pca:
+        return data_pca, pca
+    else:
+        return data_pca
