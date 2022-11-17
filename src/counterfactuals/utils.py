@@ -143,8 +143,22 @@ def plotter(ax, data, **param_dict):
     return out
 
 
-def plot_counterfactuals(explainer, pca=None):
-    """Plot the query and the resulting counterfactuals"""
+def plot_counterfactuals(explainer, pca=None) -> None:
+    """
+    Plot the query and the resulting counterfactuals
+    
+    Parameters
+    ----------
+    explainer : dice_ml.Dice
+        explainer object
+    pca : sklearn.decomposition.PCA
+        pca object
+    
+    Returns
+    -------
+    None
+
+    """
 
     # serialize data from explainer for visualization
     results = json.loads(explainer.to_json())
@@ -187,8 +201,50 @@ def plot_digits(data, pca=None, n_rows: int = 4, n_cols: int = 4):
                   cmap='binary', interpolation='nearest')
 
 
+def plot_difference(data_1, data_2, pca=None, subtract_before=None, **kwargs):
+    """
+    plot the difference between two images
+
+    Parameters
+    ----------
+    data_1 : np.array
+        first image
+    data_2 : np.array
+        second image
+    pca : sklearn.decomposition.PCA
+        pca object
+    subtract_before : bool
+        subtract before or after pca
+    kwargs : dict
+        keyword arguments for plot_digits
+
+    Returns
+    -------
+    None
+    """
+
+    n_rows = 1
+    n_cols = 1
+    fig, ax = plt.subplots(n_rows, n_cols, #TODO: specify figsize and number of rows and columns
+                           subplot_kw={'xticks': [], 'yticks': []},
+                           gridspec_kw=dict(hspace=0.1, wspace=0.1))
+    # find difference between data_1 and data_2
+    if pca:
+        if subtract_before:
+            to_draw = pca.inverse_transform(data_1 - data_2)
+        else:
+            to_draw = pca.inverse_transform(data_1) - pca.inverse_transform(data_2)
+    else:
+        to_draw = data_1 - data_2
+    # find difference between two images
+
+    c = ax.imshow(to_draw.reshape(28, 28),
+                  cmap='viridis', interpolation='nearest', vmin=0)
+    fig.colorbar(c, ax=ax)
+
+
 def get_PCA_data(
-    data: pd.DataFrame, 
+    data: pd.DataFrame,
     n_components: int = None,
     pca: Optional[PCA] = None,
     rename_column: bool = True,
