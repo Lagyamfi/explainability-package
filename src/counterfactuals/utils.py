@@ -65,7 +65,7 @@ def train(train_X, train_Y, learner='classifier'):
     return best_model
 
 
-def evaluate(x_test, y_test, model=None, return_df=None, conf_mat=None):
+def evaluate(x_test, y_test, model=None, return_df=None, conf_mat=None, keep_index=None):
     """
     evaluate a model
 
@@ -96,6 +96,7 @@ def evaluate(x_test, y_test, model=None, return_df=None, conf_mat=None):
         disp = metrics.ConfusionMatrixDisplay.from_predictions(y_test, predictions)
         disp.figure_.suptitle("Confusion Matrix")
     if return_df:
+        index = y_test.index
         return pd.DataFrame(predictions, columns=['predictions'], index=y_test.index)
 
 
