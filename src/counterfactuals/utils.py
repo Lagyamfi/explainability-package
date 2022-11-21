@@ -187,7 +187,7 @@ def plot_counterfactuals(explainer, pca=None) -> None:
 
 def plot_digits(data, pca=None, n_rows: int = 4, n_cols: int = 4):
 
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols, n_rows),   #TODO: specify figsize and number of rows and columns
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols, n_rows),   # TODO: specify figsize and number of rows and columns
                              subplot_kw={'xticks': [], 'yticks': []},
                              gridspec_kw=dict(hspace=0.1, wspace=0.1))
     for i, ax in enumerate(axes.flat):
@@ -226,7 +226,7 @@ def plot_difference(data_1, data_2, pca=None, subtract_before=None, **kwargs):
 
     n_rows = 1
     n_cols = 1
-    fig, ax = plt.subplots(n_rows, n_cols, #TODO: specify figsize and number of rows and columns
+    fig, ax = plt.subplots(n_rows, n_cols,  # TODO: specify figsize and number of rows and columns
                            subplot_kw={'xticks': [], 'yticks': []},
                            gridspec_kw=dict(hspace=0.1, wspace=0.1))
     # find difference between data_1 and data_2
@@ -249,7 +249,8 @@ def get_PCA_data(
     n_components: int = None,
     pca: Optional[PCA] = None,
     rename_column: bool = True,
-    return_pca: bool = False,) -> list[pd.DataFrame, Optional[PCA]]:
+    return_pca: bool = False,
+    ) -> list[pd.DataFrame, Optional[PCA]]:
     """
     Get PCA data
     

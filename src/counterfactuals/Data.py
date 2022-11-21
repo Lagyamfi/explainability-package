@@ -86,7 +86,7 @@ class Data:
         Parameters
         ----------
         pca (bool) : whether to return the PCA transformed data
-        
+
         Returns
         -------
         pd.DataFrame
@@ -147,3 +147,10 @@ class Data:
         """
         # TODO exception handling data loaded
         return self._dataframe
+
+    @dataframe.setter
+    def dataframe(self, data: pd.DataFrame) -> None:
+        self._dataframe = data
+
+    def __repr__(self) -> str:
+        return f"Data({self.name}, {self.path})"
