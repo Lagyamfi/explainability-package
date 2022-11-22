@@ -25,9 +25,9 @@ class Data:
         self._testing: pd.DataFrame = None
         self._dataframe: pd.DataFrame = None
         if isinstance(data, pd.DataFrame):
-            self.load(data)
+            self._load(data)
         elif isinstance(path, Path):
-            self.load(pd.read_csv(path))
+            self._load(pd.read_csv(path))
         else:
             raise ValueError("Either path or data must be specified")
         self.feature_names: List[str] = None
@@ -45,24 +45,24 @@ class Data:
         -------
         None
         """
+        if self.dataframe is None:
+            raise ValueError("No data to split")
+
         self._training, self._testing = train_test_split(
             self._dataframe, test_size=split_size
         )
 
-    def load(self, data: pd.DataFrame, split: bool = True) -> None:
-        """Load the data into the class and split it if necessary
+    def _load(self, data: pd.DataFrame) -> None:
+        """Load the data into the class
         Parameters
         ----------
         data (pd.DataFrame) : the data to load
-        split (bool)        : whether to split the data into training and testing sets
 
         Returns
         -------
         None
         """
         self.dataframe = data     # TODO validate data
-        if split:
-            self.split()
 
     def pca(self, n_components: int = 2) -> None:
         """Perform PCA on the data
@@ -74,6 +74,12 @@ class Data:
         -------
         None
         """
+        if self.dataframe is not None:
+            if not (isinstance(self.training, pd.DataFrame) and isinstance(self.testing, pd.DataFrame)):
+                raise ValueError("No data to perform PCA")
+        else:
+            raise ValueError("No data to perform PCA")
+
         from sklearn.decomposition import PCA
 
         pca = PCA(n_components=n_components)

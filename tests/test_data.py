@@ -20,16 +20,78 @@ class TestInitialize:
         path = get_dataframe[0]
         data = Data(path=path)
         assert data.path == path
-        assert data.name == None
+        assert data.name is None
         assert data.dataframe.shape == (99, 785)
-        # assert data.training.shape == (80, 3)
-        # assert data.testing.shape == (20, 3)
+        assert data.training is None
+        assert data.testing is None
 
     def test_initialize_with_dataframe(self, get_dataframe):
         """Test initializing the Data class with dataframe"""
-        data = Data(data=get_dataframe[1])
-        assert data.path == None
-        assert data.name == None
+        data = Data(data=get_dataframe[1], name="test")
+        assert data.path is None
+        assert data.name == "test"
+        assert data.dataframe.shape == (99, 785)
+        assert data.training is None
+        assert data.testing is None
+
+    def test_load(self, get_dataframe):
+        """Test the _load method"""
+        data = Data(path=get_dataframe[0])
+        data._load(get_dataframe[1])
         assert data.dataframe.shape == (99, 785)
 
 
+class TestSplit:
+
+    def test_data_split_default(self, get_dataframe):
+        """Test the split method with default parameters"""
+        data = Data(data=get_dataframe[1], name="test")
+        data.split()
+        assert data.training.shape == (79, 785)
+        assert data.testing.shape == (20, 785)
+
+    def test_data_split_custom(self, get_dataframe):
+        """Test the split method with custom parameters"""
+        data = Data(data=get_dataframe[1], name="test")
+        data.split(split_size=0.1)
+        assert data.training.shape == (89, 785)
+        assert data.testing.shape == (10, 785)
+
+    def test_data_split_no_data(self, get_dataframe):
+        """Test the split method with no data"""
+        data = Data(path=get_dataframe[0])
+        data._dataframe = None  # done be able to test split method error
+        with pytest.raises(ValueError) as info:
+            data.split()
+        expected = "No data to split"
+        assert expected in str(info.value)
+
+
+class TestPCA:
+
+    def test_pca_default(self, get_dataframe):
+        """Test the pca method"""
+        data = Data(data=get_dataframe[1], name="test")
+        data.split()
+        data.pca()
+        assert data._pca_train.shape == (79, 2)
+        assert data._pca_test.shape == (20, 2)
+
+    def test_pca_custom(self, get_dataframe):
+        """Test the pca method with custom parameters"""
+        data = Data(data=get_dataframe[1], name="test")
+        data.split()
+        data.pca(n_components=20)
+        assert data._pca_train.shape == (79, 20)
+        assert data._pca_test.shape == (20, 20)
+
+    @pytest.mark.parametrize("split_type", ["dataframe", "training", "testing"])
+    def test_pca_data(self, get_dataframe, split_type):
+        """Test the pca method with no data"""
+        data = Data(data=get_dataframe[1], name="test")
+        data.split()
+        setattr(data, split_type, None)   # done be able to test pca method error
+        with pytest.raises(ValueError) as info:
+            data.pca()
+        expected = "No data to perform PCA"
+        assert expected in str(info.value)
