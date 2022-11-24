@@ -187,7 +187,7 @@ def plot_counterfactuals(explainer, pca=None) -> None:
 
 def plot_digits(data, pca=None, n_rows: int = 4, n_cols: int = 4):
 
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(),   # TODO: specify figsize and number of rows and columns
+    fig, axes = plt.subplots(n_rows, n_cols,  # TODO: specify figsize and number of rows and columns
                              subplot_kw={'xticks': [], 'yticks': []},
                              gridspec_kw=dict(hspace=0.1, wspace=0.1))
     for i, ax in enumerate(axes.flat):
@@ -201,6 +201,7 @@ def plot_digits(data, pca=None, n_rows: int = 4, n_cols: int = 4):
         ax.imshow(to_draw.reshape(28, 28),
                   cmap='binary', interpolation='nearest')
 
+    
 
 def plot_difference(data_1, data_2, pca=None, subtract_before=None, return_diff=None, **kwargs):
     """
