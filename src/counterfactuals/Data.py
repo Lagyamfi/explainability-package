@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Union, overload
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -8,32 +8,43 @@ from sklearn.model_selection import train_test_split
 class Data:
     """A class for the data used in the experimets"""
 
+    @overload
+    def __init__(self, path: Path, *, name: str = None) -> None:
+        ...
+
+    @overload
+    def __init__(self, data: pd.DataFrame, *, name: str = None) -> None:
+        ...
+
     def __init__(
         self,
-        path: Path = None,
-        data: pd.DataFrame = None,
-        name: str = None) -> None:
+        source: Union[Path, pd.DataFrame] = None,
+        *,
+        name: str = None
+    ) -> None:
         """
         Parameters
         ----------
-        path (Path) : path to the data
+        source (Union[Path, pd.DataFrame]) : the source of the data
         name (str)  : name of the dataset
         """
-        self.path = path
         self.name = name
         self._training: pd.DataFrame = None
         self._testing: pd.DataFrame = None
         self._dataframe: pd.DataFrame = None
-        if isinstance(data, pd.DataFrame):
-            self._load(data)
-        elif isinstance(path, Path):
-            self._load(pd.read_csv(path))
-        else:
-            raise ValueError("Either path or data must be specified")
         self.feature_names: List[str] = None
         self.target_name: str = None
         self._pca_train: Optional[pd.DataFrame] = None
         self._pca_test: Optional[pd.DataFrame] = None
+        if source is not None:
+            if isinstance(source, pd.DataFrame):
+                self._load(source)
+            elif isinstance(source, Path):
+                self._load(pd.read_csv(source))
+            else:
+                raise ValueError("Either path or data must be specified")
+        else:
+            raise ValueError("Either path or data must be specified")
 
     def split(self, split_size: float = 0.2) -> None:
         """Split the data into training and testing sets
