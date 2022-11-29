@@ -9,18 +9,18 @@ class Data:
     """A class for the data used in the experimets"""
 
     @overload
-    def __init__(self, path: Path, *, name: str = None) -> None:
+    def __init__(self, path: Path, *, name: Optional[str] = None) -> None:
         ...
 
     @overload
-    def __init__(self, data: pd.DataFrame, *, name: str = None) -> None:
+    def __init__(self, data: pd.DataFrame, *, name: Optional[str] = None) -> None:
         ...
 
-    def __init__(
+    def __init__(               # type: ignore
         self,
-        source: Union[Path, pd.DataFrame] = None,
+        source: Union[Path, pd.DataFrame, None] = None,
         *,
-        name: str = None
+        name: Optional[str] = None
     ) -> None:
         """
         Parameters
@@ -32,8 +32,8 @@ class Data:
         self._training: pd.DataFrame = None
         self._testing: pd.DataFrame = None
         self._dataframe: pd.DataFrame = None
-        self.feature_names: List[str] = None
-        self.target_name: str = None
+        self.feature_names: Optional[List[str]] = None
+        self.target_name: Optional[str] = None
         self._pca_train: Optional[pd.DataFrame] = None
         self._pca_test: Optional[pd.DataFrame] = None
         if source is not None:
@@ -98,7 +98,7 @@ class Data:
         self._pca_test = pca.transform(self.testing)
 
     @property
-    def training(self, pca: bool = None) -> pd.DataFrame:
+    def training(self, pca: Optional[bool] = None) -> pd.DataFrame:
         """The training set
         Parameters
         ----------
@@ -124,7 +124,7 @@ class Data:
         self._training = data
 
     @property
-    def testing(self, pca: bool = None) -> pd.DataFrame:
+    def testing(self, pca: Optional[bool] = None) -> pd.DataFrame:
         """The testing set
         Parameters
         ----------
@@ -170,4 +170,4 @@ class Data:
         self._dataframe = data
 
     def __repr__(self) -> str:
-        return f"Data({self.name}, {self.path})"
+        return f"Data(name={self.name!r}, dataframe shape={self._dataframe.shape!r})"

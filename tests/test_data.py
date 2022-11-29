@@ -38,6 +38,15 @@ class TestInitialize:
         data._load(get_dataframe[1])
         assert data.dataframe.shape == (99, 785)
 
+class TestPrint:
+    """Test the __repr__ method"""
+
+    def test_print(self, get_dataframe):
+        """Test the __repr__ method"""
+        data = Data(get_dataframe[1], name="test")
+        expected = "Data(name='test', dataframe shape=(99, 785))"
+        assert data.__repr__() == expected
+
 
 class TestSplit:
 

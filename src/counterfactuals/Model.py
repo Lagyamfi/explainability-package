@@ -18,8 +18,8 @@ class Model(abc.ABC):
 
     def __init__(
         self,
-        backend: str = None,
-        name: str = None,
+        backend: Optional[str] = None,
+        name: Optional[str] = None,
     ) -> None:
         """
         Parameters
@@ -32,7 +32,7 @@ class Model(abc.ABC):
         except ValueError:
             raise ValueError(f"Invalid Backend: {backend!r} not supported")
         self.name = name
-        self._model: "Model" = None
+        self._model: Optional["Model"] = None       # type: ignore
         self._train_x: pd.DataFrame = None
         self._train_y: pd.DataFrame = None
         self._test_x: pd.DataFrame = None
@@ -63,9 +63,9 @@ class Model(abc.ABC):
         """
         ...
 
-    def load(
+    def load(                           # type: ignore
         self,
-        source: Union[Path, "Model"] = None,
+        source: Union[Path, "Model", None] = None,
     ) -> None:
         """Load the model into the class
         Parameters
@@ -104,10 +104,11 @@ class Model(abc.ABC):
         return self._model.predict(data)
 
     def evaluate(
-        self, data_x: pd.DataFrame,
+        self,
+        data_x: pd.DataFrame,
         data_y: pd.DataFrame,
-        return_df: bool = None,
-        conf_mat: bool = None
+        return_df: Optional[bool] = None,
+        conf_mat: Optional[bool] = None
     ) -> pd.DataFrame:
         """Evaluate the model
         Parameters
@@ -132,8 +133,8 @@ class Model(abc.ABC):
     def get_queries(
         self,
         true_labels,
-        predicted: float = None,
-        expected: float = None
+        predicted: Optional[float] = None,
+        expected: Optional[float] = None
     ) -> pd.DataFrame:
         """Get queries where predicted != expected
         Parameters
