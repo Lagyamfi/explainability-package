@@ -30,11 +30,13 @@ class Data:
         """
         self.name = name
         self._training: pd.DataFrame = None
-        self._testing: pd.DataFrame = None
+        self._validation: Optional[pd.DataFrame] = None
+        self._testing: Optional[pd.DataFrame] = None
         self._dataframe: pd.DataFrame = None
         self.feature_names: Optional[List[str]] = None
         self.target_name: Optional[str] = None
         self._pca_train: Optional[pd.DataFrame] = None
+        self._pca_validation: Optional[pd.DataFrame] = None
         self._pca_test: Optional[pd.DataFrame] = None
         if source is not None:
             if isinstance(source, pd.DataFrame):
@@ -121,6 +123,19 @@ class Data:
 
     @training.setter
     def training(self, data: pd.DataFrame) -> None:
+        """Set the training set
+        Parameters
+        ----------
+        data (pd.DataFrame) : the training set
+
+        Returns
+        -------
+        None
+        """
+        if data is None:
+            raise ValueError("Training data cannot be None")
+        if self._training is not None:
+            raise ValueError("Training set already set")
         self._training = data
 
     @property

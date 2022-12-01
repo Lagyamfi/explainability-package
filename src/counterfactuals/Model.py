@@ -1,24 +1,19 @@
 from pathlib import Path
 import abc
-from typing import Optional, List, overload, Union
+from typing import Optional, List, overload, Union, Any
 import enum
 
 import pandas as pd
 import sklearn
 
-class Backend(enum.Enum):
-    """The backend to use for the model"""
-    sklearn = "sklearn"
-    tensorflow = "tensorflow"
-    pytorch = "pytorch"
+from counterfactuals.constants import Backend
 
-
-class Model(abc.ABC):
+class Model:
     """Class for the model that is being explained."""
 
     def __init__(
         self,
-        backend: Optional[str] = None,
+        backend: Optional[str] = Backend.pytorch,
         name: Optional[str] = None,
     ) -> None:
         """
@@ -27,41 +22,23 @@ class Model(abc.ABC):
         backend (str) : the backend implementation of the the model
         name (str) : the name of the model
         """
-        try:
-            self.backend = Backend(backend)
-        except ValueError:
+        if backend not in Backend.ALL:
             raise ValueError(f"Invalid Backend: {backend!r} not supported")
+        self.backend = backend
         self.name = name
-        self._model: Optional["Model"] = None       # type: ignore
-        self._train_x: pd.DataFrame = None
-        self._train_y: pd.DataFrame = None
-        self._test_x: pd.DataFrame = None
-        self._test_y: pd.DataFrame = None
-        self._predictions: pd.DataFrame = None
+        self.get_model_implementation(self.backend, self.name)
 
-    @overload
-    def load(
-        self,
-        path: Optional[Path] = None,
-    ) -> None:
-        """Load the model into the class
+    def get_model_implementation(self, backend: Backend, name: str) -> Any:
+        """Get the model implementation
         Parameters
         ----------
-        path (Path) : path to the model
+        backend (Backend) : the backend implementation
+        Returns
+        -------
+        Any : the model implementation
         """
-        ...
-
-    @overload
-    def load(
-        self,
-        model: Optional["Model"] = None,
-    ) -> None:
-        """Load the model into the class
-        Parameters
-        ----------
-        model ("Model") : the model to load
-        """
-        ...
+        self.__class__ = get_implementation(backend)
+        self.__init__(backend=backend, name=name)
 
     def load(                           # type: ignore
         self,
@@ -71,88 +48,33 @@ class Model(abc.ABC):
         Parameters
         ----------
         path (Path) : path to the model
-        model (sklearn.base.BaseEstimator) : the model to load
+        model () : the model to load
         """
         if isinstance(source, Path):
             raise NotImplementedError("Loading from path not implemented")  # TODO
         self._model = source
 
-    @abc.abstractmethod
-    def train(
-        self,
-        train_data: pd.DataFrame,
-        test_data: Optional[pd.DataFrame] = None,
-    ) -> None:
-        """
-        Train the model
-        Parameters
-        ----------
-        train_data (pd.DataFrame) : the training data
-        test_data (pd.DataFrame) : the testing data
-        """
-        ...
 
-    def predict(self, data: pd.DataFrame) -> pd.DataFrame:
-        """Predict the output of the model
-        Parameters
-        ----------
-        data (pd.DataFrame) : the data to predict
-        Returns
-        -------
-        pd.DataFrame : the predictions
-        """
-        return self._model.predict(data)
+def get_implementation(backend: Backend) -> Model:
+    """Get the implementation of the model
+    Parameters
+    ----------
+    backend (str) : the backend implementation of the model
+    Returns
+    -------
+    Model : the model implementation
+    """
+    if backend == Backend.sklearn:
+        from counterfactuals.sklearnModel import SklearnModel
 
-    def evaluate(
-        self,
-        data_x: pd.DataFrame,
-        data_y: pd.DataFrame,
-        return_df: Optional[bool] = None,
-        conf_mat: Optional[bool] = None
-    ) -> pd.DataFrame:
-        """Evaluate the model
-        Parameters
-        ----------
-        data (pd.DataFrame) : the data to evaluate
-        return_df (bool) : whether to return a dataframe of the results
-        conf_mat (bool) : whether to return a confusion matrix
+        return SklearnModel
+    elif backend == Backend.tensorflow:
+        from counterfactuals.TensorflowModel import TensorflowModel
 
-        Returns
-        -------
-        pd.DataFrame : the evaluation results
-        """
-        self._predictions = self.predict(data_x)
+        return TensorflowModel
+    elif backend == Backend.pytorch:
+        from counterfactuals.PytorchModel import PytorchModel
 
-        print(f"{self._model.score(data_x, data_y) * 100 :.2f} % ")
-        if conf_mat:
-            disp = sklearn.metrics.ConfusionMatrixDisplay.from_predictions(data_y, self._predictions)
-            disp.figure_.suptitle("Confusion Matrix")
-        if return_df:
-            return self._predictions
-
-    def get_queries(
-        self,
-        true_labels,
-        predicted: Optional[float] = None,
-        expected: Optional[float] = None
-    ) -> pd.DataFrame:
-        """Get queries where predicted != expected
-        Parameters
-        ----------
-        predicted (float) : the predicted value
-        expected (float) : the expected value
-        Returns
-        -------
-        pd.DataFrame : the queries
-        """
-        test_df = pd.DataFrame([self._predictions, true_labels]).T
-        test_df.columns = ['predictions', 'true_labels']
-        condition = f"(predictions != true_labels) & (true_labels == {expected}) & (predictions == {predicted})"
-        query_list = test_df.query(condition).index
-        return query_list
-
-    def __repr__(self) -> str:
-        return (
-            f"Model(backend={self.backend}, name={self.name}, "
-            f"model={self._model.__class__.__name__})"
-        )
+        return PytorchModel
+    else:
+        raise ValueError(f"Invalid Backend: {backend!r} not supported")

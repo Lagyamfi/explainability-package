@@ -201,8 +201,6 @@ def plot_digits(data, pca=None, n_rows: int = 4, n_cols: int = 4):
         ax.imshow(to_draw.reshape(28, 28),
                   cmap='binary', interpolation='nearest')
 
-    
-
 def plot_difference(data_1, data_2, pca=None, subtract_before=None, return_diff=None, **kwargs):
     """
     plot the difference between two images

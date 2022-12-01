@@ -6,11 +6,11 @@ import enum
 import pandas as pd
 import sklearn
 
-from counterfactuals.Model import Model
+from counterfactuals.BaseModel import BaseModel
 
-class SklearnModel(Model):
-    def __init__(self, backend: str = "sklearn"):
-        super().__init__(backend=backend)
+class SklearnModel(BaseModel):
+    def __init__(self, backend: str = "sklearn", name: str = None) -> None:
+        super().__init__(backend=backend, name=name)
         self._model: sklearn.base.BaseEstimator = None
         self._train_x: pd.DataFrame = None
         self._train_y: pd.DataFrame = None
@@ -20,7 +20,7 @@ class SklearnModel(Model):
 
     def load(
         self,
-        source: Union[Path, Model] = None,
+        source: Union[Path, BaseModel] = None,
     ) -> None:
         """Load the model into the class
         Parameters
