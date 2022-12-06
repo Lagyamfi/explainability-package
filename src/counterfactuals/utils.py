@@ -65,7 +65,7 @@ def train(train_X, train_Y, learner='classifier'):
     return best_model
 
 
-def evaluate(x_test, y_test, model=None, return_df=None, conf_mat=None):
+def evaluate(x_test, y_test, model=None, return_df=None, conf_mat=None, keep_index=None):
     """
     evaluate a model
 
@@ -96,6 +96,7 @@ def evaluate(x_test, y_test, model=None, return_df=None, conf_mat=None):
         disp = metrics.ConfusionMatrixDisplay.from_predictions(y_test, predictions)
         disp.figure_.suptitle("Confusion Matrix")
     if return_df:
+        index = y_test.index
         return pd.DataFrame(predictions, columns=['predictions'], index=y_test.index)
 
 
@@ -112,7 +113,7 @@ def get_query(predictions, true_labels, expected, predicted, count=None, datafra
         query_list = test_df.query(condition).index
         return query_list
     else:
-        query_list = np.where((predictions != true_labels) & (true_labels == expected) & (predictions == predicted) )
+        query_list = np.where((predictions != true_labels) & (true_labels == expected) & (predictions == predicted))
     if (count is not None) and (count <= len(query_list[0])):
         return query_list[0][:count]
     else:
@@ -124,7 +125,7 @@ def prep_data_for_dice(x_test, y_test):
     prepare data for dice
     """
 
-    #dataframe = pd.concat([x_test, y_test], axis=1,)
+    # dataframe = pd.concat([x_test, y_test], axis=1,)
     if isinstance(x_test, pd.DataFrame):
         dataframe = x_test.copy()
     else:
@@ -167,7 +168,7 @@ def plot_counterfactuals(explainer, pca=None) -> None:
 
     # set up plot
     n_cols = len(cfs) + 1
-    fig, ax = plt.subplots(1, n_cols, figsize=(2*n_cols, 2))
+    fig, ax = plt.subplots(1, n_cols, figsize=(2 * n_cols, 2))
 
     # plot the query
     if pca:
@@ -186,7 +187,7 @@ def plot_counterfactuals(explainer, pca=None) -> None:
 
 def plot_digits(data, pca=None, n_rows: int = 4, n_cols: int = 4):
 
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols, n_rows),   #TODO: specify figsize and number of rows and columns
+    fig, axes = plt.subplots(n_rows, n_cols,  # TODO: specify figsize and number of rows and columns
                              subplot_kw={'xticks': [], 'yticks': []},
                              gridspec_kw=dict(hspace=0.1, wspace=0.1))
     for i, ax in enumerate(axes.flat):
@@ -200,8 +201,7 @@ def plot_digits(data, pca=None, n_rows: int = 4, n_cols: int = 4):
         ax.imshow(to_draw.reshape(28, 28),
                   cmap='binary', interpolation='nearest')
 
-
-def plot_difference(data_1, data_2, pca=None, subtract_before=None, **kwargs):
+def plot_difference(data_1, data_2, pca=None, subtract_before=None, return_diff=None, **kwargs):
     """
     plot the difference between two images
 
@@ -220,12 +220,13 @@ def plot_difference(data_1, data_2, pca=None, subtract_before=None, **kwargs):
 
     Returns
     -------
-    None
+    L2 norm of the difference
+    difference between the images
     """
 
     n_rows = 1
     n_cols = 1
-    fig, ax = plt.subplots(n_rows, n_cols, #TODO: specify figsize and number of rows and columns
+    fig, ax = plt.subplots(n_rows, n_cols,  # TODO: specify figsize and number of rows and columns
                            subplot_kw={'xticks': [], 'yticks': []},
                            gridspec_kw=dict(hspace=0.1, wspace=0.1))
     # find difference between data_1 and data_2
@@ -241,6 +242,10 @@ def plot_difference(data_1, data_2, pca=None, subtract_before=None, **kwargs):
     c = ax.imshow(to_draw.reshape(28, 28),
                   cmap='viridis', interpolation='nearest', vmin=0)
     fig.colorbar(c, ax=ax)
+    difference = np.linalg.norm(to_draw)
+    if return_diff:
+        return to_draw, difference
+    return difference
 
 
 def get_PCA_data(
@@ -248,7 +253,8 @@ def get_PCA_data(
     n_components: int = None,
     pca: Optional[PCA] = None,
     rename_column: bool = True,
-    return_pca: bool = False,) -> list[pd.DataFrame, Optional[PCA]]:
+    return_pca: bool = False,
+    ) -> list[pd.DataFrame, Optional[PCA]]:
     """
     Get PCA data
     
