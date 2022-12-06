@@ -13,6 +13,7 @@ class Model:
 
     def __init__(
         self,
+        model: Optional[Any] = None,
         backend: Optional[str] = Backend.pytorch,
         name: Optional[str] = None,
     ) -> None:
@@ -26,9 +27,9 @@ class Model:
             raise ValueError(f"Invalid Backend: {backend!r} not supported")
         self.backend = backend
         self.name = name
-        self.get_model_implementation(self.backend, self.name)
+        self.get_model_implementation(model, self.backend, self.name)
 
-    def get_model_implementation(self, backend: Backend, name: str) -> Any:
+    def get_model_implementation(self, model, backend: Backend, name: str) -> Any:
         """Get the model implementation
         Parameters
         ----------
@@ -38,7 +39,7 @@ class Model:
         Any : the model implementation
         """
         self.__class__ = get_implementation(backend)
-        self.__init__(backend=backend, name=name)
+        self.__init__(model, backend=backend, name=name)
 
     def load(                           # type: ignore
         self,

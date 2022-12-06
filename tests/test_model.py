@@ -11,7 +11,7 @@ class TestInitialize:
     def test_initialize_Model_empty(self):
         """Test the Model class"""
         model = Model.Model()
-        assert model.backend == "sklearn"
+        assert model.backend == "pytorch"
         assert model.name is None
 
     def test_load(self, get_dataframe):

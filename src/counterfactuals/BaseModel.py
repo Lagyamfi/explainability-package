@@ -8,11 +8,12 @@ import sklearn
 
 from counterfactuals.constants import Backend
 
-class BaseModel(abc.ABC):
+class BaseModel:
     """Class for the model that is being explained."""
 
     def __init__(
         self,
+        model: Optional[Any] = None,
         backend: Optional[str] = None,
         name: Optional[str] = None,
     ) -> None:
@@ -23,11 +24,11 @@ class BaseModel(abc.ABC):
         name (str) : the name of the model
         """
         try:
-            self.backend = Backend(backend)
+            self.backend = backend
         except ValueError:
             raise ValueError(f"Invalid Backend: {backend!r} not supported")
         self.name = name
-        self._model: Optional[Any] = None       # type: ignore
+        self._model: Optional[Any] = model    # type: ignore
         self._train_x: pd.DataFrame = None
         self._train_y: pd.DataFrame = None
         self._test_x: pd.DataFrame = None

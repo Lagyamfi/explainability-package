@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, List, Union, overload
+from typing import Optional, List, Union, overload, Any
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -20,6 +20,7 @@ class Data:
         self,
         source: Union[Path, pd.DataFrame, None] = None,
         *,
+        target_name: Optional[str] = 'label',
         name: Optional[str] = None
     ) -> None:
         """
@@ -29,30 +30,31 @@ class Data:
         name (str)  : name of the dataset
         """
         self.name = name
-        self._training: pd.DataFrame = None
-        self._validation: Optional[pd.DataFrame] = None
-        self._testing: Optional[pd.DataFrame] = None
+        self._train_x: pd.DataFrame = None
+        self._train_y: pd.DataFrame = None
+        self._val_x: Optional[pd.DataFrame] = None
+        self._val_y: Optional[pd.DataFrame] = None
         self._dataframe: pd.DataFrame = None
         self.feature_names: Optional[List[str]] = None
-        self.target_name: Optional[str] = None
-        self._pca_train: Optional[pd.DataFrame] = None
-        self._pca_validation: Optional[pd.DataFrame] = None
-        self._pca_test: Optional[pd.DataFrame] = None
+        self.target_name: Optional[str] = target_name
+        self._pca_train_x: Optional[pd.DataFrame] = None
+        self._pca_object: Optional[Any] = None
+        self._pca_val_x: Optional[pd.DataFrame] = None
         if source is not None:
             if isinstance(source, pd.DataFrame):
-                self._load(source)
+                self._load(source, target_name)
             elif isinstance(source, Path):
-                self._load(pd.read_csv(source))
+                self._load(pd.read_csv(source), target_name)
             else:
                 raise ValueError("Either path or data must be specified")
         else:
             raise ValueError("Either path or data must be specified")
 
     def split(self, split_size: float = 0.2) -> None:
-        """Split the data into training and testing sets
+        """Split the data into training and validation sets
         Parameters
         ----------
-        split_size (float) : the size of the testing set
+        split_size (float) : the size of the validation set
 
         Returns
         -------
@@ -61,11 +63,13 @@ class Data:
         if self.dataframe is None:
             raise ValueError("No data to split")
 
-        self._training, self._testing = train_test_split(
+        train_df, val_df = train_test_split(
             self._dataframe, test_size=split_size
         )
+        self.train_data = train_df.drop(self.target_name, axis=1), train_df[self.target_name]
+        self.val_data = val_df.drop(self.target_name, axis=1), val_df[self.target_name]
 
-    def _load(self, data: pd.DataFrame) -> None:
+    def _load(self, data: pd.DataFrame, target_name: str = 'label') -> None:
         """Load the data into the class
         Parameters
         ----------
@@ -76,6 +80,8 @@ class Data:
         None
         """
         self.dataframe = data     # TODO validate data
+        self.target_name = target_name
+        self.feature_names = list(self.dataframe.drop(self.target_name, axis=1).columns)  # TODO validate target name
 
     def pca(self, n_components: int = 2) -> None:
         """Perform PCA on the data
@@ -88,19 +94,22 @@ class Data:
         None
         """
         if self.dataframe is not None:
-            if not (isinstance(self.training, pd.DataFrame) and isinstance(self.testing, pd.DataFrame)):
+            if not (isinstance(self._train_x, pd.DataFrame) and isinstance(self._val_x, pd.DataFrame)):
                 raise ValueError("No data to perform PCA")
         else:
             raise ValueError("No data to perform PCA")
 
         from sklearn.decomposition import PCA
 
-        pca = PCA(n_components=n_components)
-        self._pca_train = pca.fit_transform(self.training)
-        self._pca_test = pca.transform(self.testing)
+        self._pca_object = PCA(n_components=n_components)
+        pca_train_x = self._pca_object.fit_transform(self._train_x)
+        pca_val_x = self._pca_object.transform(self._val_x)  # TODO: check validation data is not None
+        # rename columns of PCA dataframe
+        self._pca_train_x = pd.DataFrame(pca_train_x, columns=[f"PCA_{i}" for i in range(pca_train_x.shape[1])])
+        self._pca_val_x = pd.DataFrame(pca_val_x, columns=[f"PCA_{i}" for i in range(pca_val_x.shape[1])])
 
     @property
-    def training(self, pca: Optional[bool] = None) -> pd.DataFrame:
+    def train_data(self, pca: Optional[bool] = None) -> List[pd.DataFrame]:
         """The training set
         Parameters
         ----------
@@ -118,11 +127,11 @@ class Data:
         """
         # TODO exception handling data loaded
         if pca:
-            return self._pca_train
-        return self._training
+            return self._pca_train_x, self._train_y
+        return self._train_x, self._train_y
 
-    @training.setter
-    def training(self, data: pd.DataFrame) -> None:
+    @train_data.setter
+    def train_data(self, data: List[pd.DataFrame]) -> None:
         """Set the training set
         Parameters
         ----------
@@ -132,15 +141,13 @@ class Data:
         -------
         None
         """
-        if data is None:
-            raise ValueError("Training data cannot be None")
-        if self._training is not None:
+        if self._train_x is not None:
             raise ValueError("Training set already set")
-        self._training = data
+        self._train_x, self._train_y = data
 
     @property
-    def testing(self, pca: Optional[bool] = None) -> pd.DataFrame:
-        """The testing set
+    def val_data(self, pca: Optional[bool] = None) -> List[pd.DataFrame]:
+        """The validation set
         Parameters
         ----------
         pca (bool) : whether to return the PCA transformed data
@@ -148,21 +155,31 @@ class Data:
         Returns
         -------
         pd.DataFrame
-            the testing set
+            the validation set
 
         Raises
         ------
         ValueError
-            if the testing set has not been loaded
+            if the validation set has not been loaded
         """
         # TODO exception handling data loaded
         if pca:
-            return self._pca_test
-        return self._testing
+            return self._pca_val
+        return self._val_x, self._val_y
 
-    @testing.setter
-    def testing(self, data: pd.DataFrame) -> None:
-        self._testing = data
+    @val_data.setter
+    def val_data(self, data: List[pd.DataFrame]) -> None:
+        """
+        set the validation set
+        Parameters
+        ----------
+        data (pd.DataFrame) : the validation set
+
+        Returns
+        -------
+        None
+        """
+        self._val_x, self._val_y = data
 
     @property
     def dataframe(self) -> pd.DataFrame:
