@@ -29,6 +29,22 @@ dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
 
 [project.scripts]
 
+[tool.pytest.ini_options]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+    "-v",
+    ]
+
+testpaths = [
+    "tests",
+    ]
+
+markers = [
+    "smoke: subset of tests",
+    "exception: check for expected exceptions",
+    ]
 
 # ... other project metadata fields as specified in:
 #     https://packaging.python.org/en/latest/specifications/declaring-project-metadata/

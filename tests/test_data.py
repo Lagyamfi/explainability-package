@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest import mock
 
 import pytest
 import pandas as pd
@@ -8,10 +9,10 @@ from counterfactuals.Data import Data
 class TestInitialize:
     """Test the Data class"""
 
-    def test_initialize_Data_empty(self):
+    def test_initialize_Data_empty(self, mock_data):
         """Test the Data class"""
         with pytest.raises(ValueError or TypeError) as info:
-            data = Data()
+            data = mock_data()
         expected = "Either path or data must be specified"  # TODO probably should be a constant
         assert expected in str(info.value)
 
@@ -71,11 +72,12 @@ class TestSplit:
     def test_data_split_no_data(self, get_dataframe):
         """Test the split method with no data"""
         data = Data(get_dataframe[0])
-        data._dataframe = None  # done be able to test split method error
-        with pytest.raises(ValueError) as info:
-            data.split()
-        expected = "No data to split"
-        assert expected in str(info.value)
+        # data._dataframe = None
+        with mock.patch.object(data, "_dataframe", None):  # done be able to test split method error
+            with pytest.raises(ValueError) as info:
+                data.split()
+            expected = "No data to split"
+            assert expected in str(info.value)
 
 
 class TestPCA:
