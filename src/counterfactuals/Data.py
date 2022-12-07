@@ -9,11 +9,11 @@ class Data:
     """A class for the data used in the experimets"""
 
     @overload
-    def __init__(self, path: Path, *, name: Optional[str] = None) -> None:
+    def __init__(self, path: Path, *, name: Optional[str] = None) -> None:      # pragma: no cover
         ...
 
     @overload
-    def __init__(self, data: pd.DataFrame, *, name: Optional[str] = None) -> None:
+    def __init__(self, data: pd.DataFrame, *, name: Optional[str] = None) -> None:      # pragma: no cover
         ...
 
     def __init__(               # type: ignore
