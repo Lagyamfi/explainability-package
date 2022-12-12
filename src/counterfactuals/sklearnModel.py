@@ -9,9 +9,13 @@ import sklearn
 from counterfactuals.BaseModel import BaseModel
 
 class SklearnModel(BaseModel):
-    def __init__(self, backend: str = "sklearn", name: str = None) -> None:
+    def __init__(
+        self,
+        model: Optional[sklearn.base.BaseEstimator] = None,
+        backend: str = "sklearn", name: str = None
+    ) -> None:
         super().__init__(backend=backend, name=name)
-        self._model: sklearn.base.BaseEstimator = None
+        self._model: sklearn.base.BaseEstimator = model
         self._train_x: pd.DataFrame = None
         self._train_y: pd.DataFrame = None
         self._test_x: pd.DataFrame = None
