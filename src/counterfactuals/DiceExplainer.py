@@ -20,7 +20,7 @@ class DiceExplainer(BaseExplainer):
         return data_dice
 
     def _prep_model(self, **kwargs):
-        model_dice = dice_ml.Model(model=self.ml_model, backend="PYT", model_type='classifier')  # TODO: fix backend return value
+        model_dice = dice_ml.Model(model=self.ml_model._model, backend="PYT", model_type='classifier')  # TODO: fix backend return value
         explainer = dice_ml.Dice(self.explainer_data, model_dice, method="random", **kwargs)
         self._explainer_model = explainer
 

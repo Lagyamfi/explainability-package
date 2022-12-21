@@ -90,7 +90,7 @@ class PytorchModel(BaseModel):
         y_pred = torch.max(self._model(data), dim=1)
         return torch.tensor(y_pred[1].detach().numpy())
 
-    @conf_matrix
+    #@conf_matrix
     def evaluate(self, data: pd.DataFrame, labels: pd.DataFrame) -> Dict[str, Any]:
         """
         Evaluate the model on the data
