@@ -1,6 +1,7 @@
 # import python standard libraries
 import json
-from typing import Optional
+from typing import Optional, Callable, Any 
+from functools import wraps
 
 # import 3rd party libraries
 import dice_ml
@@ -194,7 +195,7 @@ def plot_digits(data, pca=None, n_rows: int = 4, n_cols: int = 4):
         try:
             to_draw = data[i]
         except IndexError as e:
-            print(f"Warning: number of images less than plot size!")
+            print("Warning: number of images less than plot size!")
             break
         if pca:
             to_draw = pca.inverse_transform(to_draw)
@@ -287,3 +288,14 @@ def get_PCA_data(
         return data_pca, pca
     else:
         return data_pca
+
+def conf_matrix(function: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    Decorator to print a confusion matrix
+    """
+    @wraps(function)
+    def wrapper(data, labels):
+        eval_results = function(data, labels)
+        disp = metrics.ConfusionMatrixDisplay.from_predictions(labels, eval_results['predictions'])
+        disp.figure_.suptitle("Confusion Matrix")
+    return wrapper

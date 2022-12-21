@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Union, Any, List, Tuple
+from typing import Optional, Union, Any, List, Tuple, Dict
 
 import pandas as pd
 import numpy as np
@@ -7,6 +7,7 @@ import torch
 from sklearn.metrics import accuracy_score
 
 from counterfactuals.BaseModel import BaseModel
+from counterfactuals.utils import conf_matrix
 
 class PytorchModel(BaseModel):
     def __init__(self, model: Optional[torch.nn.Module] = None, backend: str = "pytorch", name: str = None) -> None:
@@ -26,12 +27,12 @@ class PytorchModel(BaseModel):
         Parameters
         ----------
         path (Path) : path to the model
-        model (sklearn.base.BaseEstimator) : the model to load
+        model (torch.nn.Module) : the model to load
         """
         if isinstance(source, Path):
             raise NotImplementedError("Loading from path not implemented")  # TODO
         if not isinstance(source, torch.nn.Module):
-            raise ValueError("Model must be a sklearn model")
+            raise ValueError("Model must be a pytorch model")
         self._model = source
 
     def set_up(self, input_dim: int, *args: Optional[List[int]], output_dim: int = 10) -> None:
@@ -67,6 +68,8 @@ class PytorchModel(BaseModel):
         """
         if ((train_data is None) and (train_labels is None)):
             raise ValueError("No training data provided")
+        if self._model is None:
+            raise ValueError("No model set up")
         self._model.train_model(train_data, train_labels, val_data, val_labels, **kwargs)
 
     def predict(self, data: pd.DataFrame) -> np.ndarray:
@@ -82,11 +85,13 @@ class PytorchModel(BaseModel):
         if self._model is None:
             raise ValueError("No model set up or loaded")
 
-        data = torch.tensor(data.values, dtype=torch.float32)
+        if isinstance(data, (pd.DataFrame, pd.Series)):
+            data = torch.tensor(data.values, dtype=torch.float32)
         y_pred = torch.max(self._model(data), dim=1)
-        return y_pred[1].detach().numpy()
+        return torch.tensor(y_pred[1].detach().numpy())
 
-    def evaluate(self, data: pd.DataFrame, labels: pd.DataFrame) -> Tuple[float, np.ndarray, float]:
+    #@conf_matrix
+    def evaluate(self, data: pd.DataFrame, labels: pd.DataFrame) -> Dict[str, Any]:
         """
         Evaluate the model on the data
         Parameters
@@ -110,7 +115,14 @@ class PytorchModel(BaseModel):
         loss = float(self._model.loss_fn(y_pred, labels).detach())
         y_pred = torch.max(y_pred, dim=1)
         accuracy = accuracy_score(labels, y_pred[1])
-        return accuracy, y_pred[1].detach().numpy(), loss
+        return dict(
+            acc=accuracy,
+            predictions=y_pred[1],
+            loss=loss
+        )
+
+    def __call__(self, test_data):
+        return self.predict(test_data)
 
 
 def get_loader(data: pd.DataFrame, labels: pd.DataFrame, batch_size: int) -> torch.utils.data.DataLoader:

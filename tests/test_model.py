@@ -18,6 +18,23 @@ class TestInitialize:
         """Test the _load method"""
         pass
 
+    @pytest.mark.parametrize(
+        "backend, class_name",
+        [
+            ("pytorch", "PytorchModel"),
+            ("tensorflow", "TensorflowModel"),
+            ("sklearn", "SklearnModel"),
+        ]
+    )
+    def test_decide_implementation(self, backend, class_name):
+        """Test getting the right backend implementation method
+        Given a backend in string format,
+        when the model is initialized,
+        the correct backend implementation is returned confirmed through the class name
+        """
+        model = Model.Model(backend=backend)
+        assert model.__class__.__name__ == class_name
+
 
 class TestTrain:
 
