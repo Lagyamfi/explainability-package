@@ -20,7 +20,8 @@ class DiceExplainer(BaseExplainer):
         return data_dice
 
     def _prep_model(self, **kwargs):
-        model_dice = dice_ml.Model(model=self.ml_model._model, backend="PYT", model_type='classifier')  # TODO: fix backend return value
+        # TODO: fix backend return value
+        model_dice = dice_ml.Model(model=self.ml_model._model, backend="PYT", model_type='classifier')
         explainer = dice_ml.Dice(self.explainer_data, model_dice, method="random", **kwargs)
         self._explainer_model = explainer
 
@@ -34,12 +35,12 @@ class DiceExplainer(BaseExplainer):
             return self.explainer_data.data_df.iloc[queries]
         return queries
 
-    def get_counterfactuals(self, query_instance=None, **kwargs):
+    def get_counterfactuals(self, query_instance=None, total_CFs=1, **kwargs):
         if self._explainer_model is None:
             self._prep_model()
         dice_exp = self._explainer_model.generate_counterfactuals(
             query_instance,
-            total_CFs=5,
+            total_CFs=total_CFs,
             proximity_weight=2,
             diversity_weight=5,
             posthoc_sparsity_algorithm="binary",
