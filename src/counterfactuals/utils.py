@@ -1,6 +1,6 @@
 # import python standard libraries
 import json
-from typing import Optional, Callable, Any 
+from typing import Optional, Callable, Any, List, Tuple
 from functools import wraps
 
 # import 3rd party libraries
@@ -15,11 +15,11 @@ from sklearn.model_selection import train_test_split
 
 
 def prep_data(dataframe: pd.DataFrame,
-              target: str = None,
-              split: bool = None) -> list[pd.DataFrame, pd.DataFrame]:
+              target: str = "",
+              split: bool = False) -> List[Any]:
 
     """
-    separate into labels and training images, 
+    separate into labels and training images,
     and split into train and test sets
 
     Parameters
@@ -45,7 +45,7 @@ def prep_data(dataframe: pd.DataFrame,
                                           stratify=labels, random_state=123,
                                           test_size=0.20)
         return train_val_data
-    return (input_x, labels)
+    return [input_x, labels]
 
 
 def train(train_X, train_Y, learner='classifier'):
@@ -54,7 +54,7 @@ def train(train_X, train_Y, learner='classifier'):
     """
 
     if learner == 'classifier':
-        #perform necessary imports
+        # perform necessary imports
         from sklearn.neural_network import MLPClassifier
 
         clf = MLPClassifier(solver='adam',
@@ -148,14 +148,12 @@ def plotter(ax, data, **param_dict):
 def plot_counterfactuals(explainer, pca=None) -> None:
     """
     Plot the query and the resulting counterfactuals
-    
     Parameters
     ----------
     explainer : dice_ml.Dice
         explainer object
     pca : sklearn.decomposition.PCA
         pca object
-    
     Returns
     -------
     None
@@ -251,14 +249,14 @@ def plot_difference(data_1, data_2, pca=None, subtract_before=None, return_diff=
 
 def get_PCA_data(
     data: pd.DataFrame,
-    n_components: int = None,
+    n_components: int = 2,
     pca: Optional[PCA] = None,
     rename_column: bool = True,
     return_pca: bool = False,
-    ) -> list[pd.DataFrame, Optional[PCA]]:
+) -> Tuple[pd.DataFrame, Optional[PCA]]:
     """
     Get PCA data
-    
+
     Parameters
     ----------
     data : pd.DataFrame
@@ -277,7 +275,7 @@ def get_PCA_data(
     list[pd.DataFrame, Optional[PCA]]
         transformed data and PCA object
     """
-    
+
     if pca is None:
         pca = PCA(n_components=n_components).fit(data)
     data_pca = pca.transform(data)

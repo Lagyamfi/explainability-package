@@ -10,9 +10,9 @@ from counterfactuals.BaseModel import BaseModel
 from counterfactuals.utils import conf_matrix
 
 class PytorchModel(BaseModel):
-    def __init__(self, model: Optional[torch.nn.Module] = None, backend: str = "pytorch", name: str = None) -> None:
+    def __init__(self, model: Optional[torch.nn.Module] = None, backend: str = "pytorch", name: str = "") -> None:
         super().__init__(backend=backend, name=name)
-        self._model: torch.nn.Module = model
+        self._model: Optional[torch.nn.Module] = model
         self._train_x: pd.DataFrame = None
         self._train_y: pd.DataFrame = None
         self._test_x: pd.DataFrame = None

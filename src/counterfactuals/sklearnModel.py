@@ -12,7 +12,7 @@ class SklearnModel(BaseModel):
     def __init__(
         self,
         model: Optional[sklearn.base.BaseEstimator] = None,
-        backend: str = "sklearn", name: str = None
+        backend: str = "sklearn", name: str = ""
     ) -> None:
         super().__init__(backend=backend, name=name)
         self._model: sklearn.base.BaseEstimator = model

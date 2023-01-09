@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, List, overload, Union, Any
+from typing import Optional, List, overload, Union, Any, Type
 
 import pandas as pd
 import sklearn
@@ -12,8 +12,8 @@ class Model:
     def __init__(
         self,
         model: Optional[Any] = None,
-        backend: Optional[str] = Backend.pytorch,
         name: Optional[str] = None,
+        backend: Optional[Backend] = Backend.pytorch,
     ) -> None:
         """
         Parameters
@@ -27,7 +27,7 @@ class Model:
         self.name = name
         self.get_model_implementation(model, self.backend, self.name)
 
-    def get_model_implementation(self, model, backend: Backend, name: str) -> Any:
+    def get_model_implementation(self, model, backend: Backend, name: Optional[str]) -> None:
         """Get the model implementation
         Parameters
         ----------
@@ -54,7 +54,7 @@ class Model:
         self._model = source
 
 
-def get_implementation(backend: Backend) -> Model:
+def get_implementation(backend: Backend) -> "Type[Model]":
     """Get the implementation of the model
     Parameters
     ----------
