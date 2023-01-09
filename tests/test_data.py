@@ -6,12 +6,13 @@ import pandas as pd
 
 from counterfactuals.Data import Data
 
+
 class TestInitialize:
     """Test the Data class"""
 
     def test_initialize_Data_empty(self, mock_data):
         """Test the Data class"""
-        with pytest.raises(ValueError or TypeError) as info:
+        with pytest.raises(ValueError or TypeError) as info:  # type: ignore
             data = mock_data()
         expected = "Either path or data must be specified"  # TODO probably should be a constant
         assert expected in str(info.value)
@@ -39,6 +40,7 @@ class TestInitialize:
         data._load(get_dataframe[1])
         assert data.dataframe.shape == (99, 785)
 
+
 class TestPrint:
     """Test the __repr__ method"""
 
@@ -50,7 +52,6 @@ class TestPrint:
 
 
 class TestSplit:
-
     def test_data_split_default(self, get_dataframe):
         """Test the split method with default parameters"""
         data = Data(get_dataframe[1], name="test")
@@ -73,7 +74,9 @@ class TestSplit:
         """Test the split method with no data"""
         data = Data(get_dataframe[0])
         # data._dataframe = None
-        with mock.patch.object(data, "_dataframe", None):  # done be able to test split method error
+        with mock.patch.object(
+            data, "_dataframe", None
+        ):  # done be able to test split method error
             with pytest.raises(ValueError) as info:
                 data.split()
             expected = "No data to split"
@@ -81,7 +84,6 @@ class TestSplit:
 
 
 class TestPCA:
-
     def test_pca_default(self, get_dataframe):
         """Test the pca method"""
         data = Data(get_dataframe[1], name="test")
@@ -102,7 +104,7 @@ class TestPCA:
     def test_pca_data(self, get_dataframe, split_type):
         """Test the pca method with no data"""
         data = Data(get_dataframe[1], name="test")
-        setattr(data, split_type, None)   # done be able to test pca method error
+        setattr(data, split_type, None)  # done be able to test pca method error
         with pytest.raises(ValueError) as info:
             data.pca()
         expected = "No data to perform PCA"

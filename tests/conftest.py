@@ -18,6 +18,7 @@ def fixture_get_dataframe() -> pd.DataFrame:
     path = Path(__file__).parent.parent / "data" / "test_train.csv"
     return path, pd.read_csv(path)
 
+
 @pytest.fixture()
 def mock_data():
     error = ValueError("Either path or data must be specified")

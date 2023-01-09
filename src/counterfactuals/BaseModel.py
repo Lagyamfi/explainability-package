@@ -8,6 +8,7 @@ import sklearn
 
 from counterfactuals.constants import Backend
 
+
 class BaseModel:
     """Class for the model that is being explained."""
 
@@ -28,7 +29,7 @@ class BaseModel:
         except ValueError:
             raise ValueError(f"Invalid Backend: {backend!r} not supported")
         self.name = name
-        self._model: Optional[Any] = model    # type: ignore
+        self._model: Optional[Any] = model  # type: ignore
         self._train_x: pd.DataFrame = None
         self._train_y: pd.DataFrame = None
         self._test_x: pd.DataFrame = None
@@ -59,7 +60,7 @@ class BaseModel:
         """
         ...
 
-    def load(                           # type: ignore
+    def load(  # type: ignore
         self,
         source: Union[Path, "BaseModel", None] = None,
     ) -> None:
@@ -86,6 +87,7 @@ class BaseModel:
         """
         ...
 
+    @abc.abstractmethod
     def predict(self, data: pd.DataFrame) -> pd.DataFrame:
         """Predict the output of the model
         Parameters
@@ -95,14 +97,15 @@ class BaseModel:
         -------
         pd.DataFrame : the predictions
         """
-        return self._model.predict(data)
+        ...
 
+    @abc.abstractmethod
     def evaluate(
         self,
         data_x: pd.DataFrame,
         data_y: pd.DataFrame,
         return_df: Optional[bool] = None,
-        conf_mat: Optional[bool] = None
+        conf_mat: Optional[bool] = None,
     ) -> pd.DataFrame:
         """Evaluate the model
         Parameters
@@ -115,35 +118,7 @@ class BaseModel:
         -------
         pd.DataFrame : the evaluation results
         """
-        self._predictions = self.predict(data_x)
-
-        print(f"{self._model.score(data_x, data_y) * 100 :.2f} % ")
-        if conf_mat:
-            disp = sklearn.metrics.ConfusionMatrixDisplay.from_predictions(data_y, self._predictions)
-            disp.figure_.suptitle("Confusion Matrix")
-        if return_df:
-            return self._predictions
-
-    def get_queries(
-        self,
-        true_labels,
-        predicted: Optional[float] = None,
-        expected: Optional[float] = None
-    ) -> pd.DataFrame:
-        """Get queries where predicted != expected
-        Parameters
-        ----------
-        predicted (float) : the predicted value
-        expected (float) : the expected value
-        Returns
-        -------
-        pd.DataFrame : the queries
-        """
-        test_df = pd.DataFrame([self._predictions, true_labels]).T
-        test_df.columns = ['predictions', 'true_labels']
-        condition = f"(predictions != true_labels) & (true_labels == {expected}) & (predictions == {predicted})"
-        query_list = test_df.query(condition).index
-        return query_list
+        ...
 
     def __repr__(self) -> str:
         return (

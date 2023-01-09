@@ -4,8 +4,10 @@ from counterfactuals import utils
 import dice_ml
 import pandas as pd
 
+
 class DiceExplainer(BaseExplainer):
     """Class for the Dice explainer."""
+
     def __init__(self, model, data_x, data_y, name=None):
         super().__init__(model, data_x, data_y, name)
         self.data_x = data_x  # TODO: combine into proper data object
@@ -21,14 +23,23 @@ class DiceExplainer(BaseExplainer):
 
     def _prep_model(self, **kwargs):
         # TODO: fix backend return value
-        model_dice = dice_ml.Model(model=self.ml_model._model, backend="PYT", model_type='classifier')
-        explainer = dice_ml.Dice(self.explainer_data, model_dice, method="random", **kwargs)
+        model_dice = dice_ml.Model(
+            model=self.ml_model._model, backend="PYT", model_type="classifier"
+        )
+        explainer = dice_ml.Dice(
+            self.explainer_data, model_dice, method="random", **kwargs
+        )
         self._explainer_model = explainer
 
     def get_query(self, predicted, expected, dataframe=False):
         if self._predictions is None:
             self._predictions = self.ml_model.predict(self.data_x).numpy()
-        queries = utils.get_query(self._predictions, self.data_y, predicted=predicted, expected=expected,)
+        queries = utils.get_query(
+            self._predictions,
+            self.data_y,
+            predicted=predicted,
+            expected=expected,
+        )
         if len(queries) == 0:
             return f"No queries found for predicted={predicted!r} and expected={expected!r}"
         if dataframe:
@@ -44,7 +55,7 @@ class DiceExplainer(BaseExplainer):
             proximity_weight=2,
             diversity_weight=5,
             posthoc_sparsity_algorithm="binary",
-            **kwargs
+            **kwargs,
         )
         self._explainer_object = dice_exp
 

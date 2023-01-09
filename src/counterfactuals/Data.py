@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, List, Union, overload, Any
+from typing import Optional, List, Union, overload, Any, Tuple
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -9,19 +9,23 @@ class Data:
     """A class for the data used in the experimets"""
 
     @overload
-    def __init__(self, path: Path, *, name: Optional[str] = None) -> None:      # pragma: no cover
+    def __init__(
+        self, path: Path, *, name: Optional[str] = None
+    ) -> None:  # pragma: no cover
         ...
 
     @overload
-    def __init__(self, data: pd.DataFrame, *, name: Optional[str] = None) -> None:      # pragma: no cover
+    def __init__(
+        self, data: pd.DataFrame, *, name: Optional[str] = None
+    ) -> None:  # pragma: no cover
         ...
 
-    def __init__(               # type: ignore
+    def __init__(  # type: ignore
         self,
         source: Union[Path, pd.DataFrame, None] = None,
         *,
-        target_name: Optional[str] = 'label',
-        name: Optional[str] = None
+        target_name: str = "label",
+        name: Optional[str] = None,
     ) -> None:
         """
         Parameters
@@ -36,7 +40,7 @@ class Data:
         self._val_y: Optional[pd.DataFrame] = None
         self._dataframe: pd.DataFrame = None
         self.feature_names: Optional[List[str]] = None
-        self.target_name: Optional[str] = target_name
+        self.target_name: str = target_name
         self._pca_train_x: Optional[pd.DataFrame] = None
         self._pca_object: Optional[Any] = None
         self._pca_val_x: Optional[pd.DataFrame] = None
@@ -50,7 +54,7 @@ class Data:
         else:
             raise ValueError("Either path or data must be specified")
 
-    def split(self, split_size: float = 0.2) -> None:
+    def split(self, split_size: float = 0.2, **kwargs) -> None:
         """Split the data into training and validation sets
         Parameters
         ----------
@@ -64,12 +68,15 @@ class Data:
             raise ValueError("No data to split")
 
         train_df, val_df = train_test_split(
-            self._dataframe, test_size=split_size
+            self._dataframe, test_size=split_size, **kwargs
         )
-        self.train_data = train_df.drop(self.target_name, axis=1), train_df[self.target_name]
+        self.train_data = (
+            train_df.drop(self.target_name, axis=1),
+            train_df[self.target_name],
+        )
         self.val_data = val_df.drop(self.target_name, axis=1), val_df[self.target_name]
 
-    def _load(self, data: pd.DataFrame, target_name: str = 'label') -> None:
+    def _load(self, data: pd.DataFrame, target_name: str = "label") -> None:
         """Load the data into the class
         Parameters
         ----------
@@ -79,9 +86,11 @@ class Data:
         -------
         None
         """
-        self.dataframe = data     # TODO validate data
+        self.dataframe = data  # TODO validate data
         self.target_name = target_name
-        self.feature_names = list(self.dataframe.drop(self.target_name, axis=1).columns)  # TODO validate target name
+        self.feature_names = list(
+            self.dataframe.drop(self.target_name, axis=1).columns
+        )  # TODO validate target name
 
     def pca(self, n_components: int = 2) -> None:
         """Perform PCA on the data
@@ -94,7 +103,10 @@ class Data:
         None
         """
         if self.dataframe is not None:
-            if not (isinstance(self._train_x, pd.DataFrame) and isinstance(self._val_x, pd.DataFrame)):
+            if not (
+                isinstance(self._train_x, pd.DataFrame)
+                and isinstance(self._val_x, pd.DataFrame)
+            ):
                 raise ValueError("No data to perform PCA")
         else:
             raise ValueError("No data to perform PCA")
@@ -103,13 +115,21 @@ class Data:
 
         self._pca_object = PCA(n_components=n_components)
         pca_train_x = self._pca_object.fit_transform(self._train_x)
-        pca_val_x = self._pca_object.transform(self._val_x)  # TODO: check validation data is not None
+        pca_val_x = self._pca_object.transform(
+            self._val_x
+        )  # TODO: check validation data is not None
         # rename columns of PCA dataframe
-        self._pca_train_x = pd.DataFrame(pca_train_x, columns=[f"PCA_{i}" for i in range(pca_train_x.shape[1])])
-        self._pca_val_x = pd.DataFrame(pca_val_x, columns=[f"PCA_{i}" for i in range(pca_val_x.shape[1])])
+        self._pca_train_x = pd.DataFrame(
+            pca_train_x, columns=[f"PCA_{i}" for i in range(pca_train_x.shape[1])]
+        )
+        self._pca_val_x = pd.DataFrame(
+            pca_val_x, columns=[f"PCA_{i}" for i in range(pca_val_x.shape[1])]
+        )
 
     @property
-    def train_data(self, pca: Optional[bool] = None) -> List[pd.DataFrame]:
+    def train_data(
+        self, pca: Optional[bool] = None
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """The training set
         Parameters
         ----------
@@ -146,7 +166,7 @@ class Data:
         self._train_x, self._train_y = data
 
     @property
-    def val_data(self, pca: Optional[bool] = None) -> List[pd.DataFrame]:
+    def val_data(self, pca: Optional[bool] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """The validation set
         Parameters
         ----------
@@ -164,7 +184,7 @@ class Data:
         """
         # TODO exception handling data loaded
         if pca:
-            return self._pca_val
+            return self._pca_val_x, self._val_y
         return self._val_x, self._val_y
 
     @val_data.setter

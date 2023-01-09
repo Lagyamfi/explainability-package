@@ -1,6 +1,6 @@
 # import python standard libraries
 import json
-from typing import Optional, Callable, Any 
+from typing import Optional, Callable, Any, List, Tuple
 from functools import wraps
 
 # import 3rd party libraries
@@ -14,12 +14,12 @@ from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
 
 
-def prep_data(dataframe: pd.DataFrame,
-              target: str = None,
-              split: bool = None) -> list[pd.DataFrame, pd.DataFrame]:
+def prep_data(
+    dataframe: pd.DataFrame, target: str = "", split: bool = False
+) -> List[Any]:
 
     """
-    separate into labels and training images, 
+    separate into labels and training images,
     and split into train and test sets
 
     Parameters
@@ -41,32 +41,33 @@ def prep_data(dataframe: pd.DataFrame,
     input_x = dataframe.iloc[:, 1:] / 255.0
     if split:
         # training and validation split
-        train_val_data = train_test_split(input_x, labels,
-                                          stratify=labels, random_state=123,
-                                          test_size=0.20)
+        train_val_data = train_test_split(
+            input_x, labels, stratify=labels, random_state=123, test_size=0.20
+        )
         return train_val_data
-    return (input_x, labels)
+    return [input_x, labels]
 
 
-def train(train_X, train_Y, learner='classifier'):
+def train(train_X, train_Y, learner="classifier"):
     """
     train a model
     """
 
-    if learner == 'classifier':
-        #perform necessary imports
+    if learner == "classifier":
+        # perform necessary imports
         from sklearn.neural_network import MLPClassifier
 
-        clf = MLPClassifier(solver='adam',
-                            hidden_layer_sizes=(100,),
-                            random_state=1,
-                            verbose=True)
+        clf = MLPClassifier(
+            solver="adam", hidden_layer_sizes=(100,), random_state=1, verbose=True
+        )
         best_model = clf.fit(train_X, train_Y)
 
     return best_model
 
 
-def evaluate(x_test, y_test, model=None, return_df=None, conf_mat=None, keep_index=None):
+def evaluate(
+    x_test, y_test, model=None, return_df=None, conf_mat=None, keep_index=None
+):
     """
     evaluate a model
 
@@ -98,10 +99,12 @@ def evaluate(x_test, y_test, model=None, return_df=None, conf_mat=None, keep_ind
         disp.figure_.suptitle("Confusion Matrix")
     if return_df:
         index = y_test.index
-        return pd.DataFrame(predictions, columns=['predictions'], index=y_test.index)
+        return pd.DataFrame(predictions, columns=["predictions"], index=y_test.index)
 
 
-def get_query(predictions, true_labels, expected, predicted, count=None, dataframe=None):
+def get_query(
+    predictions, true_labels, expected, predicted, count=None, dataframe=None
+):
     """
     get a query from the dataset
     """
@@ -109,12 +112,16 @@ def get_query(predictions, true_labels, expected, predicted, count=None, datafra
     if dataframe:
         # test_df = pd.DataFrame([predictions, true_labels], index=true_labels.index).transpose()
         test_df = pd.concat([predictions, true_labels], axis=1)
-        test_df.columns = ['predictions', 'true_labels']
+        test_df.columns = ["predictions", "true_labels"]
         condition = f"(predictions != true_labels) & (true_labels == {expected}) & (predictions == {predicted})"
         query_list = test_df.query(condition).index
         return query_list
     else:
-        query_list = np.where((predictions != true_labels) & (true_labels == expected) & (predictions == predicted))
+        query_list = np.where(
+            (predictions != true_labels)
+            & (true_labels == expected)
+            & (predictions == predicted)
+        )
     if (count is not None) and (count <= len(query_list[0])):
         return query_list[0][:count]
     else:
@@ -134,7 +141,11 @@ def prep_data_for_dice(x_test, y_test):
     dataframe[y_test.name] = y_test.values
     outcome_name = y_test.name
     cont_features = dataframe.drop(outcome_name, axis=1).columns.tolist()
-    data_dice = dice_ml.Data(dataframe=dataframe, continuous_features=cont_features, outcome_name=outcome_name)
+    data_dice = dice_ml.Data(
+        dataframe=dataframe,
+        continuous_features=cont_features,
+        outcome_name=outcome_name,
+    )
     return data_dice
 
 
@@ -148,14 +159,12 @@ def plotter(ax, data, **param_dict):
 def plot_counterfactuals(explainer, pca=None) -> None:
     """
     Plot the query and the resulting counterfactuals
-    
     Parameters
     ----------
     explainer : dice_ml.Dice
         explainer object
     pca : sklearn.decomposition.PCA
         pca object
-    
     Returns
     -------
     None
@@ -164,8 +173,8 @@ def plot_counterfactuals(explainer, pca=None) -> None:
 
     # serialize data from explainer for visualization
     results = json.loads(explainer.to_json())
-    query = results['test_data'][0]
-    cfs = results['cfs_list'][0]
+    query = results["test_data"][0]
+    cfs = results["cfs_list"][0]
 
     # set up plot
     n_cols = len(cfs) + 1
@@ -183,14 +192,20 @@ def plot_counterfactuals(explainer, pca=None) -> None:
         data = np.array(img_data)[:-1]
         if pca:
             data = pca.inverse_transform(data)
-        plotter(ax[idx], data,)
+        plotter(
+            ax[idx],
+            data,
+        )
 
 
 def plot_digits(data, pca=None, n_rows: int = 4, n_cols: int = 4):
 
-    fig, axes = plt.subplots(n_rows, n_cols,  # TODO: specify figsize and number of rows and columns
-                             subplot_kw={'xticks': [], 'yticks': []},
-                             gridspec_kw=dict(hspace=0.1, wspace=0.1))
+    fig, axes = plt.subplots(
+        n_rows,
+        n_cols,  # TODO: specify figsize and number of rows and columns
+        subplot_kw={"xticks": [], "yticks": []},
+        gridspec_kw=dict(hspace=0.1, wspace=0.1),
+    )
     for i, ax in enumerate(axes.flat):
         try:
             to_draw = data[i]
@@ -199,10 +214,12 @@ def plot_digits(data, pca=None, n_rows: int = 4, n_cols: int = 4):
             break
         if pca:
             to_draw = pca.inverse_transform(to_draw)
-        ax.imshow(to_draw.reshape(28, 28),
-                  cmap='binary', interpolation='nearest')
+        ax.imshow(to_draw.reshape(28, 28), cmap="binary", interpolation="nearest")
 
-def plot_difference(data_1, data_2, pca=None, subtract_before=None, return_diff=None, **kwargs):
+
+def plot_difference(
+    data_1, data_2, pca=None, subtract_before=None, return_diff=None, **kwargs
+):
     """
     plot the difference between two images
 
@@ -227,9 +244,12 @@ def plot_difference(data_1, data_2, pca=None, subtract_before=None, return_diff=
 
     n_rows = 1
     n_cols = 1
-    fig, ax = plt.subplots(n_rows, n_cols,  # TODO: specify figsize and number of rows and columns
-                           subplot_kw={'xticks': [], 'yticks': []},
-                           gridspec_kw=dict(hspace=0.1, wspace=0.1))
+    fig, ax = plt.subplots(
+        n_rows,
+        n_cols,  # TODO: specify figsize and number of rows and columns
+        subplot_kw={"xticks": [], "yticks": []},
+        gridspec_kw=dict(hspace=0.1, wspace=0.1),
+    )
     # find difference between data_1 and data_2
     if pca:
         if subtract_before:
@@ -240,8 +260,9 @@ def plot_difference(data_1, data_2, pca=None, subtract_before=None, return_diff=
         to_draw = data_1 - data_2
     # find difference between two images
 
-    c = ax.imshow(to_draw.reshape(28, 28),
-                  cmap='viridis', interpolation='nearest', vmin=0)
+    c = ax.imshow(
+        to_draw.reshape(28, 28), cmap="viridis", interpolation="nearest", vmin=0
+    )
     fig.colorbar(c, ax=ax)
     difference = np.linalg.norm(to_draw)
     if return_diff:
@@ -251,14 +272,14 @@ def plot_difference(data_1, data_2, pca=None, subtract_before=None, return_diff=
 
 def get_PCA_data(
     data: pd.DataFrame,
-    n_components: int = None,
+    n_components: int = 2,
     pca: Optional[PCA] = None,
     rename_column: bool = True,
     return_pca: bool = False,
-    ) -> list[pd.DataFrame, Optional[PCA]]:
+) -> Tuple[pd.DataFrame, Optional[PCA]]:
     """
     Get PCA data
-    
+
     Parameters
     ----------
     data : pd.DataFrame
@@ -277,25 +298,32 @@ def get_PCA_data(
     list[pd.DataFrame, Optional[PCA]]
         transformed data and PCA object
     """
-    
+
     if pca is None:
         pca = PCA(n_components=n_components).fit(data)
     data_pca = pca.transform(data)
     if rename_column:
         # rename columns starting with "feature"
-        data_pca = pd.DataFrame(data_pca, columns=[f"PCA_{i}" for i in range(data_pca.shape[1])])
+        data_pca = pd.DataFrame(
+            data_pca, columns=[f"PCA_{i}" for i in range(data_pca.shape[1])]
+        )
     if return_pca:
         return data_pca, pca
     else:
         return data_pca
 
+
 def conf_matrix(function: Callable[..., Any]) -> Callable[..., Any]:
     """
     Decorator to print a confusion matrix
     """
+
     @wraps(function)
     def wrapper(data, labels):
         eval_results = function(data, labels)
-        disp = metrics.ConfusionMatrixDisplay.from_predictions(labels, eval_results['predictions'])
+        disp = metrics.ConfusionMatrixDisplay.from_predictions(
+            labels, eval_results["predictions"]
+        )
         disp.figure_.suptitle("Confusion Matrix")
+
     return wrapper

@@ -1,4 +1,4 @@
 [paths]
-source = 
+source =
     src
     .tox/*/site-packages
