@@ -6,6 +6,7 @@ import sklearn
 
 from counterfactuals.constants import Backend
 
+
 class Model:
     """Class for the model that is being explained."""
 
@@ -27,7 +28,9 @@ class Model:
         self.name = name
         self.get_model_implementation(model, self.backend, self.name)
 
-    def get_model_implementation(self, model, backend: Backend, name: Optional[str]) -> None:
+    def get_model_implementation(
+        self, model, backend: Backend, name: Optional[str]
+    ) -> None:
         """Get the model implementation
         Parameters
         ----------
@@ -37,9 +40,9 @@ class Model:
         Any : the model implementation
         """
         self.__class__ = get_implementation(backend)
-        self.__init__(model, backend=backend, name=name)
+        self.__init__(model, backend=backend, name=name)  # type: ignore
 
-    def load(                           # type: ignore
+    def load(  # type: ignore
         self,
         source: Union[Path, "Model", None] = None,
     ) -> None:

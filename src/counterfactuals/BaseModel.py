@@ -8,6 +8,7 @@ import sklearn
 
 from counterfactuals.constants import Backend
 
+
 class BaseModel:
     """Class for the model that is being explained."""
 
@@ -28,7 +29,7 @@ class BaseModel:
         except ValueError:
             raise ValueError(f"Invalid Backend: {backend!r} not supported")
         self.name = name
-        self._model: Optional[Any] = model    # type: ignore
+        self._model: Optional[Any] = model  # type: ignore
         self._train_x: pd.DataFrame = None
         self._train_y: pd.DataFrame = None
         self._test_x: pd.DataFrame = None
@@ -59,7 +60,7 @@ class BaseModel:
         """
         ...
 
-    def load(                           # type: ignore
+    def load(  # type: ignore
         self,
         source: Union[Path, "BaseModel", None] = None,
     ) -> None:
@@ -104,7 +105,7 @@ class BaseModel:
         data_x: pd.DataFrame,
         data_y: pd.DataFrame,
         return_df: Optional[bool] = None,
-        conf_mat: Optional[bool] = None
+        conf_mat: Optional[bool] = None,
     ) -> pd.DataFrame:
         """Evaluate the model
         Parameters

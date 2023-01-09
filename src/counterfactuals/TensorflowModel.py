@@ -4,6 +4,7 @@ import pandas as pd
 
 from counterfactuals.BaseModel import BaseModel
 
+
 class TensorflowModel(BaseModel):
     """Class for the model that is being explained."""
 
@@ -20,7 +21,7 @@ class TensorflowModel(BaseModel):
         name (str) : the name of the model
         """
         super().__init__(backend=backend, name=name)
-        self._model: Optional[Any] = model    # type: ignore
+        self._model: Optional[Any] = model  # type: ignore
         self._train_x: pd.DataFrame = None
         self._train_y: pd.DataFrame = None
         self._test_x: pd.DataFrame = None
@@ -55,7 +56,7 @@ class TensorflowModel(BaseModel):
         data_x: pd.DataFrame,
         data_y: pd.DataFrame,
         return_df: Optional[bool] = None,
-        conf_mat: Optional[bool] = None
+        conf_mat: Optional[bool] = None,
     ) -> pd.DataFrame:
         """Evaluate the model
         Parameters

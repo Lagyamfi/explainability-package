@@ -5,6 +5,7 @@ import pandas as pd
 
 from counterfactuals import Model, Data
 
+
 class TestInitialize:
     """Test the Model class"""
 
@@ -24,7 +25,7 @@ class TestInitialize:
             ("pytorch", "PytorchModel"),
             ("tensorflow", "TensorflowModel"),
             ("sklearn", "SklearnModel"),
-        ]
+        ],
     )
     def test_decide_implementation(self, backend, class_name):
         """Test getting the right backend implementation method

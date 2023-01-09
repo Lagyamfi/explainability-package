@@ -9,8 +9,14 @@ from sklearn.metrics import accuracy_score
 from counterfactuals.BaseModel import BaseModel
 from counterfactuals.utils import conf_matrix
 
+
 class PytorchModel(BaseModel):
-    def __init__(self, model: Optional[torch.nn.Module] = None, backend: str = "pytorch", name: str = "") -> None:
+    def __init__(
+        self,
+        model: Optional[torch.nn.Module] = None,
+        backend: str = "pytorch",
+        name: str = "",
+    ) -> None:
         super().__init__(backend=backend, name=name)
         self._model: Optional[torch.nn.Module] = model
         self._train_x: pd.DataFrame = None
@@ -35,7 +41,9 @@ class PytorchModel(BaseModel):
             raise ValueError("Model must be a pytorch model")
         self._model = source
 
-    def set_up(self, input_dim: int, *args: Optional[List[int]], output_dim: int = 10) -> None:
+    def set_up(
+        self, input_dim: int, *args: Optional[List[int]], output_dim: int = 10
+    ) -> None:
         """
         Set up the model
         Parameters
@@ -66,13 +74,15 @@ class PytorchModel(BaseModel):
                    (see MLP implementation for details)
 
         """
-        if ((train_data is None) and (train_labels is None)):
+        if (train_data is None) and (train_labels is None):
             raise ValueError("No training data provided")
         if self._model is None:
             raise ValueError("No model set up")
-        self._model.train_model(train_data, train_labels, val_data, val_labels, **kwargs)
+        self._model.train_model(
+            train_data, train_labels, val_data, val_labels, **kwargs
+        )
 
-    def predict(self, data: pd.DataFrame) -> np.ndarray:
+    def predict(self, data: pd.DataFrame) -> torch.Tensor:
         """
         Predict the labels for the data
         Parameters
@@ -115,17 +125,15 @@ class PytorchModel(BaseModel):
         loss = float(self._model.loss_fn(y_pred, labels).detach())
         y_pred = torch.max(y_pred, dim=1)
         accuracy = accuracy_score(labels, y_pred[1])
-        return dict(
-            acc=accuracy,
-            predictions=y_pred[1],
-            loss=loss
-        )
+        return dict(acc=accuracy, predictions=y_pred[1], loss=loss)
 
     def __call__(self, test_data):
         return self.predict(test_data)
 
 
-def get_loader(data: pd.DataFrame, labels: pd.DataFrame, batch_size: int) -> torch.utils.data.DataLoader:
+def get_loader(
+    data: pd.DataFrame, labels: pd.DataFrame, batch_size: int
+) -> torch.utils.data.DataLoader:
     """
     Get a data loader for the data
     Parameters
@@ -148,6 +156,7 @@ class MLP(torch.nn.Module):
     """
     A simple multi-layer perceptron
     """
+
     def __init__(self, input_dim: int, *hidden_dim: Any, output_dim: int) -> None:
         """
         Initialize the model
@@ -192,7 +201,7 @@ class MLP(torch.nn.Module):
         epochs: int = 20,
         lr: float = 0.01,
         batch_size: int = 128,
-        verbose: bool = True
+        verbose: bool = True,
     ) -> None:
         """
         Train the model
@@ -235,9 +244,11 @@ class MLP(torch.nn.Module):
                 # print statistics
                 if verbose:
                     if batch_idx % 100 == 0:
-                        print('Train Epoch: {}  Loss: {:.6f}'.format(
-                              epoch + 1,
-                              loss.data.item()))
+                        print(
+                            "Train Epoch: {}  Loss: {:.6f}".format(
+                                epoch + 1, loss.data.item()
+                            )
+                        )
 
         print("Training complete")
 
@@ -261,7 +272,9 @@ class MLP(torch.nn.Module):
         y_pred = torch.max(self(data), dim=1)
         return y_pred[1].detach().numpy()
 
-    def evaluate(self, data: pd.DataFrame, labels: pd.DataFrame) -> Tuple[float, np.ndarray, float]:
+    def evaluate(
+        self, data: pd.DataFrame, labels: pd.DataFrame
+    ) -> Tuple[float, np.ndarray, float]:
         """
         Evaluate the model
         Parameters
