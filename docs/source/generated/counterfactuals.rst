@@ -1,0 +1,4 @@
+﻿counterfactuals
+===============
+
+.. automodule:: counterfactuals

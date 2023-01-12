@@ -166,7 +166,7 @@ class MLP(torch.nn.Module):
         *hidden_dim (Any) : the hidden dimensions
         output_dim (int) : the output dimension
         """
-        super(MLP, self).__init__()
+        super().__init__()
 
         self.layers = torch.nn.ModuleList()
         if hidden_dim is not None:
