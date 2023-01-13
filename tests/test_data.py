@@ -109,3 +109,11 @@ class TestPCA:
             data.pca()
         expected = "No data to perform PCA"
         assert expected in str(info.value)
+
+    def test_train_data_no_split(self, get_dataframe):
+        """Test the pca method with no data"""
+        data = Data(get_dataframe[1], name="test")
+        with pytest.raises(ValueError) as info:
+            data.train_data
+        expected = "No training data!"
+        assert expected in str(info.value)

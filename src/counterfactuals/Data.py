@@ -3,6 +3,7 @@ from typing import Optional, List, Union, overload, Any, Tuple
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.decomposition import PCA
 
 
 class Data:
@@ -111,29 +112,25 @@ class Data:
         else:
             raise ValueError("No data to perform PCA")
 
-        from sklearn.decomposition import PCA
-
         self._pca_object = PCA(n_components=n_components)
         pca_train_x = self._pca_object.fit_transform(self._train_x)
-        pca_val_x = self._pca_object.transform(
-            self._val_x
-        )  # TODO: check validation data is not None
         # rename columns of PCA dataframe
         self._pca_train_x = pd.DataFrame(
             pca_train_x, columns=[f"PCA_{i}" for i in range(pca_train_x.shape[1])]
         )
-        self._pca_val_x = pd.DataFrame(
-            pca_val_x, columns=[f"PCA_{i}" for i in range(pca_val_x.shape[1])]
-        )
+        if self._val_x is not None:
+            pca_val_x = self._pca_object.transform(self._val_x)
+            # rename columns of PCA dataframe
+            self._pca_val_x = pd.DataFrame(
+                pca_val_x, columns=[f"PCA_{i}" for i in range(pca_val_x.shape[1])]
+            )
 
     @property
-    def train_data(
-        self, pca: Optional[bool] = None
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def train_data(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """The training set
         Parameters
         ----------
-        pca (bool) : whether to return the PCA transformed data
+        None
 
         Returns
         -------
@@ -145,8 +142,9 @@ class Data:
         ValueError
             if the training set has not been loaded
         """
-        # TODO exception handling data loaded
-        if pca:
+        if self._train_x is None:
+            raise ValueError("No training data!")
+        if self._pca_train_x is not None:
             return self._pca_train_x, self._train_y
         return self._train_x, self._train_y
 
