@@ -23,16 +23,21 @@ class TestInitialize:
         data = Data(path)
         assert data.name is None
         assert data.dataframe.shape == (99, 785)
-        assert data.train_data == (None, None)
-        assert data.val_data == (None, None)
+        # check access to train_data raises error
+        with pytest.raises(ValueError) as info:
+            data.train_data
+        expected = "No training data, perform split on Data!"
+        assert expected in str(info.value)
 
     def test_initialize_with_dataframe(self, get_dataframe):
         """Test initializing the Data class with dataframe"""
         data = Data(get_dataframe[1], name="test")
         assert data.name == "test"
         assert data.dataframe.shape == (99, 785)
-        assert data.train_data == (None, None)
-        assert data.val_data == (None, None)
+        with pytest.raises(ValueError) as info:
+            data.train_data
+        expected = "No training data, perform split on Data!"
+        assert expected in str(info.value)
 
     def test_load(self, get_dataframe):
         """Test the _load method"""
@@ -108,12 +113,4 @@ class TestPCA:
         with pytest.raises(ValueError) as info:
             data.pca()
         expected = "No data to perform PCA"
-        assert expected in str(info.value)
-
-    def test_train_data_no_split(self, get_dataframe):
-        """Test the pca method with no data"""
-        data = Data(get_dataframe[1], name="test")
-        with pytest.raises(ValueError) as info:
-            data.train_data
-        expected = "No training data!"
         assert expected in str(info.value)

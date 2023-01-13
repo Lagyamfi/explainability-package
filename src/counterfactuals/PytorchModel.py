@@ -13,12 +13,12 @@ from counterfactuals.utils import conf_matrix
 class PytorchModel(BaseModel):
     def __init__(
         self,
-        model: Optional[torch.nn.Module] = None,
+        model: Optional[torch.nn.Module],
         backend: str = "pytorch",
         name: str = "",
     ) -> None:
         super().__init__(backend=backend, name=name)
-        self._model: Optional[torch.nn.Module] = model
+        # self._model: Optional[torch.nn.Module]
         self._train_x: pd.DataFrame = None
         self._train_y: pd.DataFrame = None
         self._test_x: pd.DataFrame = None
@@ -131,27 +131,6 @@ class PytorchModel(BaseModel):
         return self.predict(test_data)
 
 
-def get_loader(
-    data: pd.DataFrame, labels: pd.DataFrame, batch_size: int
-) -> torch.utils.data.DataLoader:
-    """
-    Get a data loader for the data
-    Parameters
-    ----------
-    data (pd.DataFrame) : the data
-    labels (pd.DataFrame) : the labels
-    batch_size (int) : the batch size
-    Returns
-    -------
-    torch.utils.data.DataLoader : the data loader
-    """
-    data = torch.tensor(data.values, dtype=torch.float32)
-    labels = torch.tensor(labels.values, dtype=torch.long)
-    dataset = torch.utils.data.TensorDataset(data, labels)
-    loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
-    return loader
-
-
 class MLP(torch.nn.Module):
     """
     A simple multi-layer perceptron
@@ -177,6 +156,29 @@ class MLP(torch.nn.Module):
         self.layers.append(torch.nn.Linear(input_dim, output_dim))
         self.loss_fn = torch.nn.CrossEntropyLoss()
         self._score = None
+
+    @staticmethod
+    def get_loader(
+        data: pd.DataFrame, labels: pd.DataFrame, batch_size: int
+    ) -> torch.utils.data.DataLoader:
+        """
+        Get a data loader for the data
+        Parameters
+        ----------
+        data (pd.DataFrame) : the data
+        labels (pd.DataFrame) : the labels
+        batch_size (int) : the batch size
+        Returns
+        -------
+        torch.utils.data.DataLoader : the data loader
+        """
+        data = torch.tensor(data.values, dtype=torch.float32)
+        labels = torch.tensor(labels.values, dtype=torch.long)
+        dataset = torch.utils.data.TensorDataset(data, labels)
+        loader = torch.utils.data.DataLoader(
+            dataset, batch_size=batch_size, shuffle=True
+        )
+        return loader
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -223,9 +225,9 @@ class MLP(torch.nn.Module):
         optimizer = torch.optim.Adam(self.parameters(), lr=lr)
 
         # create data loaders
-        train_loader = get_loader(train_x, train_y, batch_size)
+        train_loader = MLP.get_loader(train_x, train_y, batch_size)
         if not ((val_x is None) or (val_y is None)):
-            val_loader = get_loader(val_x, val_y, batch_size)
+            val_loader = MLP.get_loader(val_x, val_y, batch_size)
 
         # train the model
         for epoch in range(epochs):

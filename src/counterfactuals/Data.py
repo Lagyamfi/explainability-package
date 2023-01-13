@@ -143,7 +143,7 @@ class Data:
             if the training set has not been loaded
         """
         if self._train_x is None:
-            raise ValueError("No training data!")
+            raise ValueError("No training data, perform split on Data!")
         if self._pca_train_x is not None:
             return self._pca_train_x, self._train_y
         return self._train_x, self._train_y

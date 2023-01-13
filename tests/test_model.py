@@ -3,7 +3,12 @@ from pathlib import Path
 import pytest
 import pandas as pd
 
-from counterfactuals import Model, Data
+from counterfactuals import (
+    Model,
+    PytorchModel,
+    TensorflowModel,
+    SklearnModel,
+)
 
 
 class TestInitialize:
@@ -34,7 +39,7 @@ class TestInitialize:
         the correct backend implementation is returned confirmed through the class name
         """
         model = Model.Model(backend=backend)
-        assert model.__class__.__name__ == class_name
+        assert isinstance(model._implementation, eval(f"{class_name}.{class_name}"))
 
 
 class TestTrain:
