@@ -3,6 +3,7 @@ from unittest import mock
 
 import pytest
 from counterfactuals import Data
+from counterfactuals import Model
 import pandas as pd
 
 
@@ -24,3 +25,14 @@ def mock_data():
     error = ValueError("Either path or data must be specified")
     with mock.patch.object(Data, "Data", side_effect=error, autospec=True) as mock_data:
         yield mock_data
+
+
+@pytest.fixture(name="get_model", scope="module")
+def fixture_model(backend: str = "pytorch"):
+    """
+    Fixtures for testing the Model class
+    Returns
+    -------
+    model(Model) : the model
+    """
+    return Model.Model(name="test", backend=backend)

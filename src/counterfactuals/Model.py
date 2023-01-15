@@ -8,7 +8,7 @@ from counterfactuals.constants import Backend
 from counterfactuals.BaseModel import BaseModel
 
 
-class Model:
+class Model(BaseModel):
     """Class for the model that is being explained."""
 
     def __init__(
@@ -26,7 +26,8 @@ class Model:
             raise ValueError(f"Invalid Backend: {backend!r} not supported")
         self.backend = backend
         self.name = name
-        self._implementation = self._get_implementation()
+        self._model = self._get_implementation()
+        # self._is_trained = False  # TODO: implement this and set to true after training
 
     def load(
         self,
@@ -38,7 +39,7 @@ class Model:
         path (Path) : path to the model
         model () : the model to load
         """
-        self._implementation.load(source)
+        self._model.load(source)
 
     def _get_implementation(self) -> BaseModel:
         """Get the implementation of the model
@@ -52,14 +53,76 @@ class Model:
         if self.backend == Backend.sklearn:
             from counterfactuals.SklearnModel import SklearnModel
 
-            return SklearnModel()
+            return SklearnModel(name=self.name)
         elif self.backend == Backend.tensorflow:
             from counterfactuals.TensorflowModel import TensorflowModel
 
-            return TensorflowModel()
+            return TensorflowModel(name=self.name)
         elif self.backend == Backend.pytorch:
             from counterfactuals.PytorchModel import PytorchModel
 
-            return PytorchModel()
+            return PytorchModel(name=self.name)
         else:
             raise ValueError(f"Invalid Backend: {self.backend!r} not supported")
+
+    def trainer(
+        self,
+        train_data: pd.DataFrame = None,
+        train_labels: pd.DataFrame = None,
+        val_data: Optional[pd.DataFrame] = None,
+        val_labels: Optional[pd.DataFrame] = None,
+        **kwargs,
+    ) -> None:
+        """
+        Train the model
+        Parameters
+        ----------
+        train_data (pd.DataFrame) : the training data
+        train_labels (pd.DataFrame) : the training labels
+        val_data (pd.DataFrame) : the testing data
+        val_labels (pd.DataFrame) : the testing labels
+        **kwargs : keyword arguments to pass to the model
+                    (see MLP implementation for details)
+        """
+        self._model.trainer(train_data, train_labels, val_data, val_labels, **kwargs)
+
+    def predict(self, data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Predict the labels for the data
+        Parameters
+        ----------
+        data (pd.DataFrame) : the data to predict
+        Returns
+        -------
+        pd.DataFrame : the predictions
+        """
+        return self._model.predict(data)
+
+    def evaluate(self, data: pd.DataFrame, labels: pd.DataFrame) -> None:
+        """
+        Evaluate the model on the data
+        Parameters
+        ----------
+        data (pd.DataFrame) : the data to evaluate
+        labels (pd.DataFrame) : the labels to evaluate
+        """
+        self._model.evaluate(data, labels)
+
+    def set_up(self, *args, **kwargs) -> None:
+        """
+        Set up the model
+        Parameters
+        ----------
+        **kwargs : keyword arguments to pass to the model
+                    (see MLP implementation for details)
+        """
+        self._model.set_up(*args, **kwargs)
+
+    def save(self, path: Path) -> None:
+        """
+        Save the model
+        Parameters
+        ----------
+        path (Path) : the path to save the model
+        """
+        self._model.save(path)

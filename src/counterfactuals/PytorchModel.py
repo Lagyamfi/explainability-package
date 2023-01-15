@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from sklearn.metrics import accuracy_score
 
+from counterfactuals import Model
 from counterfactuals.BaseModel import BaseModel
 from counterfactuals.utils import conf_matrix
 
@@ -13,17 +14,17 @@ from counterfactuals.utils import conf_matrix
 class PytorchModel(BaseModel):
     def __init__(
         self,
-        model: Optional[torch.nn.Module],
         backend: str = "pytorch",
         name: str = "",
     ) -> None:
         super().__init__(backend=backend, name=name)
-        # self._model: Optional[torch.nn.Module]
+        self._model: Optional[torch.nn.Module]
         self._train_x: pd.DataFrame = None
         self._train_y: pd.DataFrame = None
         self._test_x: pd.DataFrame = None
         self._test_y: pd.DataFrame = None
         self._predictions: pd.DataFrame = None
+        self.name = name
 
     def load(
         self,
@@ -42,7 +43,11 @@ class PytorchModel(BaseModel):
         self._model = source
 
     def set_up(
-        self, input_dim: int, *args: Optional[List[int]], output_dim: int = 10
+        self,
+        input_dim: int,
+        *args: Optional[List[int]],
+        output_dim: int = 10,
+        model_type: str = "MLP",
     ) -> None:
         """
         Set up the model
@@ -52,7 +57,17 @@ class PytorchModel(BaseModel):
         args (List[int]) : the hidden layer dimensions
         output_dim (int) : the output dimension
         """
-        self._model = MLP(input_dim, *args, output_dim=output_dim)
+        # TODO: add more model types or define in constants file
+        assert model_type in [
+            "MLP",
+            "CNN",
+        ], f"Invalid model type : {model_type!r}, must be MLP or CNN"
+        if model_type == "MLP":
+            self._model = MLP(input_dim, *args, output_dim=output_dim, name=self.name)
+        elif model_type == "CNN":
+            raise NotImplementedError("CNN not implemented")
+        else:
+            raise ValueError(f"Invalid model type {model_type!r}")
 
     def trainer(
         self,
@@ -127,6 +142,17 @@ class PytorchModel(BaseModel):
         accuracy = accuracy_score(labels, y_pred[1])
         return dict(acc=accuracy, predictions=y_pred[1], loss=loss)
 
+    def save(self, path: Path) -> None:
+        """
+        Save the model
+        Parameters
+        ----------
+        path (Path) : the path to save the model to
+        """
+        if self._model is None:
+            raise ValueError("No model set up or loaded")
+        torch.save(self._model.state_dict(), path)
+
     def __call__(self, test_data):
         return self.predict(test_data)
 
@@ -136,7 +162,9 @@ class MLP(torch.nn.Module):
     A simple multi-layer perceptron
     """
 
-    def __init__(self, input_dim: int, *hidden_dim: Any, output_dim: int) -> None:
+    def __init__(
+        self, input_dim: int, *hidden_dim: Any, output_dim: int, name: str
+    ) -> None:
         """
         Initialize the model
         Parameters
@@ -146,6 +174,7 @@ class MLP(torch.nn.Module):
         output_dim (int) : the output dimension
         """
         super().__init__()
+        self.name = name
 
         self.layers = torch.nn.ModuleList()
         if hidden_dim is not None:
