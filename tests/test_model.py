@@ -20,9 +20,27 @@ class TestInitialize:
         assert model.backend == "pytorch"
         assert model.name is None
 
-    def test_load(self, get_dataframe):
+    def test_load(self):
         """Test the _load method"""
-        pass
+        model = Model.Model(name="test")
+        model.set_up(10, 10, 10, 2)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            model_path = Path(tmpdir) / "test.pt"
+            model.save(model_path)
+            model_loaded = Model.Model()
+            model_loaded.load(model_path)
+        assert model_loaded.backend == "pytorch"
+
+    def test_load_invalid_model(self):
+        """Test the _load method with invalid model"""
+        invalid_backend = "tensorflow"
+        valid_backend = "pytorch"
+        invalid_model = Model.Model(backend=invalid_backend)
+        model = Model.Model(backend=valid_backend)
+        with pytest.raises(ValueError) as info:
+            model.load(invalid_model)
+        expected = f"Model must be a {valid_backend} model"
+        assert expected in str(info.value)
 
     @pytest.mark.parametrize(
         "backend, class_name",
@@ -85,6 +103,16 @@ class TestInitialize:
             model_path = Path(tmpdir) / "model.pt"
             model.save(model_path)
             assert model_path.exists()
+
+    def test_save_invalid(self):
+        """Test the save method when model not set up"""
+        model = Model.Model()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            model_path = Path(tmpdir) / "model.pt"
+            with pytest.raises(ValueError) as info:
+                model.save(model_path)
+            expected = "No model set up or loaded"
+            assert expected in str(info.value)
 
 
 class TestTrain:

@@ -164,7 +164,7 @@ class Data:
         self._train_x, self._train_y = data
 
     @property
-    def val_data(self, pca: Optional[bool] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def val_data(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """The validation set
         Parameters
         ----------
@@ -181,7 +181,9 @@ class Data:
             if the validation set has not been loaded
         """
         # TODO exception handling data loaded
-        if pca:
+        if self._val_x is None:
+            raise ValueError("No training data, perform split on Data!")
+        if self._pca_val_x is not None:
             return self._pca_val_x, self._val_y
         return self._val_x, self._val_y
 

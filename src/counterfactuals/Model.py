@@ -31,7 +31,7 @@ class Model(BaseModel):
 
     def load(
         self,
-        source: Union[Path, BaseModel, None] = None,
+        source: Union[str, BaseModel, None] = None,
     ) -> None:
         """Load the model into the class
         Parameters
@@ -39,6 +39,11 @@ class Model(BaseModel):
         path (Path) : path to the model
         model () : the model to load
         """
+        if isinstance(source, str):
+            path = Path(source)
+            if not path.exists():
+                raise FileNotFoundError(f"File {source!r} does not exist")
+            source = path
         self._model.load(source)
 
     def _get_implementation(self) -> BaseModel:

@@ -14,11 +14,12 @@ from counterfactuals.utils import conf_matrix
 class PytorchModel(BaseModel):
     def __init__(
         self,
+        model=None,
         backend: str = "pytorch",
         name: str = "",
     ) -> None:
         super().__init__(backend=backend, name=name)
-        self._model: Optional[torch.nn.Module]
+        self._model: Optional[torch.nn.Module] = model
         self._train_x: pd.DataFrame = None
         self._train_y: pd.DataFrame = None
         self._test_x: pd.DataFrame = None
@@ -29,6 +30,7 @@ class PytorchModel(BaseModel):
     def load(
         self,
         source: Union[Path, BaseModel] = None,
+        state_dict: bool = True,
     ) -> None:
         """Load the model into the class
         Parameters
@@ -37,7 +39,9 @@ class PytorchModel(BaseModel):
         model (torch.nn.Module) : the model to load
         """
         if isinstance(source, Path):
-            raise NotImplementedError("Loading from path not implemented")  # TODO
+            source = torch.load(source)
+            assert isinstance(source, torch.nn.Module), "Model must be a pytorch model"
+            # raise NotImplementedError("Loading from path not implemented")  # TODO
         if not isinstance(source, torch.nn.Module):
             raise ValueError("Model must be a pytorch model")
         self._model = source
@@ -151,7 +155,8 @@ class PytorchModel(BaseModel):
         """
         if self._model is None:
             raise ValueError("No model set up or loaded")
-        torch.save(self._model.state_dict(), path)
+        # torch.save(self._model.state_dict(), path) # TODO: save as recommended with state_dict
+        torch.save(self._model, path)
 
     def __call__(self, test_data):
         return self.predict(test_data)
@@ -163,7 +168,7 @@ class MLP(torch.nn.Module):
     """
 
     def __init__(
-        self, input_dim: int, *hidden_dim: Any, output_dim: int, name: str
+        self, input_dim: int, *hidden_dim: Any, output_dim: int, name: Optional[str]
     ) -> None:
         """
         Initialize the model
