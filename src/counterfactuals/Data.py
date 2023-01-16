@@ -50,8 +50,6 @@ class Data:
                 self._load(source, target_name)
             elif isinstance(source, Path):
                 self._load(pd.read_csv(source), target_name)
-            else:
-                raise ValueError("Either path or data must be specified")
         else:
             raise ValueError("Either path or data must be specified")
 

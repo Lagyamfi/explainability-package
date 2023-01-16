@@ -43,6 +43,15 @@ class TestInitialize:
         expected = f"Model must be a {valid_backend} model"
         assert expected in str(info.value)
 
+    def test_load_invalid_path(self):
+        """Test the _load method with invalid path"""
+        model = Model.Model()
+        source = "invalid_path"
+        with pytest.raises(FileNotFoundError) as info:
+            model.load(source)
+        expected = f"File {source!r} does not exist"
+        assert expected in str(info.value)
+
     @pytest.mark.parametrize(
         "backend, class_name",
         [
