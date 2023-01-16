@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from sklearn.metrics import accuracy_score
 
+from counterfactuals import Model
 from counterfactuals.BaseModel import BaseModel
 from counterfactuals.utils import conf_matrix
 
@@ -13,7 +14,7 @@ from counterfactuals.utils import conf_matrix
 class PytorchModel(BaseModel):
     def __init__(
         self,
-        model: Optional[torch.nn.Module] = None,
+        model=None,
         backend: str = "pytorch",
         name: str = "",
     ) -> None:
@@ -24,10 +25,13 @@ class PytorchModel(BaseModel):
         self._test_x: pd.DataFrame = None
         self._test_y: pd.DataFrame = None
         self._predictions: pd.DataFrame = None
+        self.name = name
+        self._trained = False
 
     def load(
         self,
         source: Union[Path, BaseModel] = None,
+        state_dict: bool = True,
     ) -> None:
         """Load the model into the class
         Parameters
@@ -36,13 +40,18 @@ class PytorchModel(BaseModel):
         model (torch.nn.Module) : the model to load
         """
         if isinstance(source, Path):
-            raise NotImplementedError("Loading from path not implemented")  # TODO
+            source = torch.load(source)
+            assert isinstance(source, torch.nn.Module), "Model must be a pytorch model"
         if not isinstance(source, torch.nn.Module):
             raise ValueError("Model must be a pytorch model")
         self._model = source
 
     def set_up(
-        self, input_dim: int, *args: Optional[List[int]], output_dim: int = 10
+        self,
+        input_dim: int,
+        *args: Optional[List[int]],
+        output_dim: int = 10,
+        model_type: str = "MLP",
     ) -> None:
         """
         Set up the model
@@ -52,7 +61,17 @@ class PytorchModel(BaseModel):
         args (List[int]) : the hidden layer dimensions
         output_dim (int) : the output dimension
         """
-        self._model = MLP(input_dim, *args, output_dim=output_dim)
+        # TODO: add more model types or define in constants file
+        assert model_type in [
+            "MLP",
+            "CNN",
+        ], f"Invalid model type : {model_type!r}, must be MLP or CNN"
+        if model_type == "MLP":
+            self._model = MLP(input_dim, *args, output_dim=output_dim, name=self.name)
+        elif model_type == "CNN":
+            raise NotImplementedError("CNN not implemented")
+        else:
+            raise ValueError(f"Invalid model type {model_type!r}")
 
     def trainer(
         self,
@@ -74,13 +93,20 @@ class PytorchModel(BaseModel):
                    (see MLP implementation for details)
 
         """
+        if self._model is None:
+            raise ValueError("No model set up or loaded")
         if (train_data is None) and (train_labels is None):
             raise ValueError("No training data provided")
-        if self._model is None:
-            raise ValueError("No model set up")
-        self._model.train_model(
-            train_data, train_labels, val_data, val_labels, **kwargs
-        )
+        if self._trained:
+            raise ValueError("Model already trained")
+        try:
+            self._model.train_model(
+                train_data, train_labels, val_data, val_labels, **kwargs
+            )
+            self._trained = True
+        except Exception as e:
+            self._trained = False
+            raise
 
     def predict(self, data: pd.DataFrame) -> torch.Tensor:
         """
@@ -94,11 +120,9 @@ class PytorchModel(BaseModel):
         """
         if self._model is None:
             raise ValueError("No model set up or loaded")
-
-        if isinstance(data, (pd.DataFrame, pd.Series)):
-            data = torch.tensor(data.values, dtype=torch.float32)
-        y_pred = torch.max(self._model(data), dim=1)
-        return torch.tensor(y_pred[1].detach().numpy())
+        if data is None:
+            raise ValueError("No data provided")
+        return self._model.predict(data)
 
     # @conf_matrix
     def evaluate(self, data: pd.DataFrame, labels: pd.DataFrame) -> Dict[str, Any]:
@@ -119,37 +143,23 @@ class PytorchModel(BaseModel):
         if labels is None:
             raise ValueError("No labels provided")
 
-        data = torch.tensor(data.values, dtype=torch.float32)
-        labels = torch.tensor(labels.values, dtype=torch.long)
-        y_pred = self._model(data)
-        loss = float(self._model.loss_fn(y_pred, labels).detach())
-        y_pred = torch.max(y_pred, dim=1)
-        accuracy = accuracy_score(labels, y_pred[1])
-        return dict(acc=accuracy, predictions=y_pred[1], loss=loss)
+        eval = self._model.evaluate(data, labels)
+        return dict(zip(["accuracy", "predictions", "loss"], eval))
+
+    def save(self, path: Path) -> None:
+        """
+        Save the model
+        Parameters
+        ----------
+        path (Path) : the path to save the model to
+        """
+        if self._model is None:
+            raise ValueError("No model set up or loaded")
+        # torch.save(self._model.state_dict(), path) # TODO: save as recommended with state_dict
+        torch.save(self._model, path)
 
     def __call__(self, test_data):
         return self.predict(test_data)
-
-
-def get_loader(
-    data: pd.DataFrame, labels: pd.DataFrame, batch_size: int
-) -> torch.utils.data.DataLoader:
-    """
-    Get a data loader for the data
-    Parameters
-    ----------
-    data (pd.DataFrame) : the data
-    labels (pd.DataFrame) : the labels
-    batch_size (int) : the batch size
-    Returns
-    -------
-    torch.utils.data.DataLoader : the data loader
-    """
-    data = torch.tensor(data.values, dtype=torch.float32)
-    labels = torch.tensor(labels.values, dtype=torch.long)
-    dataset = torch.utils.data.TensorDataset(data, labels)
-    loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
-    return loader
 
 
 class MLP(torch.nn.Module):
@@ -157,7 +167,9 @@ class MLP(torch.nn.Module):
     A simple multi-layer perceptron
     """
 
-    def __init__(self, input_dim: int, *hidden_dim: Any, output_dim: int) -> None:
+    def __init__(
+        self, input_dim: int, *hidden_dim: Any, output_dim: int, name: Optional[str]
+    ) -> None:
         """
         Initialize the model
         Parameters
@@ -166,7 +178,8 @@ class MLP(torch.nn.Module):
         *hidden_dim (Any) : the hidden dimensions
         output_dim (int) : the output dimension
         """
-        super(MLP, self).__init__()
+        super().__init__()
+        self.name = name
 
         self.layers = torch.nn.ModuleList()
         if hidden_dim is not None:
@@ -175,8 +188,32 @@ class MLP(torch.nn.Module):
                 input_dim = dim
                 self.layers.append(torch.nn.ReLU())
         self.layers.append(torch.nn.Linear(input_dim, output_dim))
+        self.layers.append(torch.nn.Sigmoid())
         self.loss_fn = torch.nn.CrossEntropyLoss()
         self._score = None
+
+    @staticmethod
+    def get_loader(
+        data: pd.DataFrame, labels: pd.DataFrame, batch_size: int
+    ) -> torch.utils.data.DataLoader:
+        """
+        Get a data loader for the data
+        Parameters
+        ----------
+        data (pd.DataFrame) : the data
+        labels (pd.DataFrame) : the labels
+        batch_size (int) : the batch size
+        Returns
+        -------
+        torch.utils.data.DataLoader : the data loader
+        """
+        data = torch.tensor(data.values, dtype=torch.float32)
+        labels = torch.tensor(labels.values, dtype=torch.long)
+        dataset = torch.utils.data.TensorDataset(data, labels)
+        loader = torch.utils.data.DataLoader(
+            dataset, batch_size=batch_size, shuffle=True
+        )
+        return loader
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -223,9 +260,9 @@ class MLP(torch.nn.Module):
         optimizer = torch.optim.Adam(self.parameters(), lr=lr)
 
         # create data loaders
-        train_loader = get_loader(train_x, train_y, batch_size)
+        train_loader = MLP.get_loader(train_x, train_y, batch_size)
         if not ((val_x is None) or (val_y is None)):
-            val_loader = get_loader(val_x, val_y, batch_size)
+            val_loader = MLP.get_loader(val_x, val_y, batch_size)
 
         # train the model
         for epoch in range(epochs):
@@ -269,7 +306,7 @@ class MLP(torch.nn.Module):
         np.ndarray : the predictions
         """
         data = torch.tensor(data.values, dtype=torch.float32)
-        y_pred = torch.max(self(data), dim=1)
+        y_pred = torch.max(self(data), dim=-1)
         return y_pred[1].detach().numpy()
 
     def evaluate(

@@ -3,6 +3,7 @@ from typing import Optional, List, Union, overload, Any, Tuple
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.decomposition import PCA
 
 
 class Data:
@@ -49,8 +50,6 @@ class Data:
                 self._load(source, target_name)
             elif isinstance(source, Path):
                 self._load(pd.read_csv(source), target_name)
-            else:
-                raise ValueError("Either path or data must be specified")
         else:
             raise ValueError("Either path or data must be specified")
 
@@ -111,29 +110,28 @@ class Data:
         else:
             raise ValueError("No data to perform PCA")
 
-        from sklearn.decomposition import PCA
+        if self._pca_object is not None:
+            raise ValueError("PCA already performed")
 
         self._pca_object = PCA(n_components=n_components)
         pca_train_x = self._pca_object.fit_transform(self._train_x)
-        pca_val_x = self._pca_object.transform(
-            self._val_x
-        )  # TODO: check validation data is not None
         # rename columns of PCA dataframe
         self._pca_train_x = pd.DataFrame(
             pca_train_x, columns=[f"PCA_{i}" for i in range(pca_train_x.shape[1])]
         )
-        self._pca_val_x = pd.DataFrame(
-            pca_val_x, columns=[f"PCA_{i}" for i in range(pca_val_x.shape[1])]
-        )
+        if self._val_x is not None:
+            pca_val_x = self._pca_object.transform(self._val_x)
+            # rename columns of PCA dataframe
+            self._pca_val_x = pd.DataFrame(
+                pca_val_x, columns=[f"PCA_{i}" for i in range(pca_val_x.shape[1])]
+            )
 
     @property
-    def train_data(
-        self, pca: Optional[bool] = None
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def train_data(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """The training set
         Parameters
         ----------
-        pca (bool) : whether to return the PCA transformed data
+        None
 
         Returns
         -------
@@ -145,8 +143,9 @@ class Data:
         ValueError
             if the training set has not been loaded
         """
-        # TODO exception handling data loaded
-        if pca:
+        if self._train_x is None:
+            raise ValueError("No training data, perform split on Data!")
+        if self._pca_train_x is not None:
             return self._pca_train_x, self._train_y
         return self._train_x, self._train_y
 
@@ -166,7 +165,7 @@ class Data:
         self._train_x, self._train_y = data
 
     @property
-    def val_data(self, pca: Optional[bool] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def val_data(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """The validation set
         Parameters
         ----------
@@ -183,7 +182,9 @@ class Data:
             if the validation set has not been loaded
         """
         # TODO exception handling data loaded
-        if pca:
+        if self._val_x is None:
+            raise ValueError("No training data, perform split on Data!")
+        if self._pca_val_x is not None:
             return self._pca_val_x, self._val_y
         return self._val_x, self._val_y
 

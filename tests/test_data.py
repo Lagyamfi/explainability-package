@@ -23,16 +23,21 @@ class TestInitialize:
         data = Data(path)
         assert data.name is None
         assert data.dataframe.shape == (99, 785)
-        assert data.train_data == (None, None)
-        assert data.val_data == (None, None)
+        # check access to train_data raises error
+        with pytest.raises(ValueError) as info:
+            data.train_data
+        expected = "No training data, perform split on Data!"
+        assert expected in str(info.value)
 
     def test_initialize_with_dataframe(self, get_dataframe):
         """Test initializing the Data class with dataframe"""
         data = Data(get_dataframe[1], name="test")
         assert data.name == "test"
         assert data.dataframe.shape == (99, 785)
-        assert data.train_data == (None, None)
-        assert data.val_data == (None, None)
+        with pytest.raises(ValueError) as info:
+            data.train_data
+        expected = "No training data, perform split on Data!"
+        assert expected in str(info.value)
 
     def test_load(self, get_dataframe):
         """Test the _load method"""
@@ -99,6 +104,16 @@ class TestPCA:
         data.pca(n_components=20)
         assert data._pca_train_x.shape == (79, 20)
         assert data._pca_val_x.shape == (20, 20)
+
+    def test_pca_already_done(self, get_dataframe):
+        """Test the pca method with custom parameters"""
+        data = Data(get_dataframe[1], name="test")
+        data.split()
+        data.pca(n_components=10)
+        with pytest.raises(ValueError) as info:
+            data.pca(n_components=10)
+        expected = "PCA already performed"
+        assert expected in str(info.value)
 
     @pytest.mark.parametrize("split_type", ["dataframe", "training", "validation"])
     def test_pca_data(self, get_dataframe, split_type):
