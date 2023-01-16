@@ -105,6 +105,16 @@ class TestPCA:
         assert data._pca_train_x.shape == (79, 20)
         assert data._pca_val_x.shape == (20, 20)
 
+    def test_pca_already_done(self, get_dataframe):
+        """Test the pca method with custom parameters"""
+        data = Data(get_dataframe[1], name="test")
+        data.split()
+        data.pca(n_components=10)
+        with pytest.raises(ValueError) as info:
+            data.pca(n_components=10)
+        expected = "PCA already performed"
+        assert expected in str(info.value)
+
     @pytest.mark.parametrize("split_type", ["dataframe", "training", "validation"])
     def test_pca_data(self, get_dataframe, split_type):
         """Test the pca method with no data"""

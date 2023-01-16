@@ -112,6 +112,9 @@ class Data:
         else:
             raise ValueError("No data to perform PCA")
 
+        if self._pca_object is not None:
+            raise ValueError("PCA already performed")
+
         self._pca_object = PCA(n_components=n_components)
         pca_train_x = self._pca_object.fit_transform(self._train_x)
         # rename columns of PCA dataframe

@@ -27,7 +27,7 @@ class Model(BaseModel):
         self.backend = backend
         self.name = name
         self._model = self._get_implementation()
-        # self._is_trained = False  # TODO: implement this and set to true after training
+        self._is_trained = False
 
     def load(
         self,
@@ -89,7 +89,15 @@ class Model(BaseModel):
         **kwargs : keyword arguments to pass to the model
                     (see MLP implementation for details)
         """
-        self._model.trainer(train_data, train_labels, val_data, val_labels, **kwargs)
+        try:
+            self._model.trainer(
+                train_data, train_labels, val_data, val_labels, **kwargs
+            )
+            self._is_trained = True
+        except Exception as e:
+            print("Training failed: ", e)
+            self._is_trained = False
+            raise e
 
     def predict(self, data: pd.DataFrame) -> pd.DataFrame:
         """
@@ -111,7 +119,7 @@ class Model(BaseModel):
         data (pd.DataFrame) : the data to evaluate
         labels (pd.DataFrame) : the labels to evaluate
         """
-        self._model.evaluate(data, labels)
+        return self._model.evaluate(data, labels)
 
     def set_up(self, *args, **kwargs) -> None:
         """

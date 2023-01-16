@@ -3,6 +3,7 @@ import tempfile
 
 import pytest
 import pandas as pd
+import numpy as np
 import torch
 
 from counterfactuals import Model, Data
@@ -118,16 +119,102 @@ class TestInitialize:
 class TestTrain:
     """Test the train method"""
 
-    def test_train(self, get_model):
+    def test_failed_train(self, get_model):
+        """Test the train method when model not set up"""
+        model = Model.Model()
+        with pytest.raises(ValueError) as info:
+            model.trainer()
+        expected = "No model set up or loaded"
+        assert expected in str(info.value)
+        assert model._is_trained is False
+
+        """Test the train method with no data"""
+        model = get_model
+        model.set_up(10, 10, 10, 2)
+        with pytest.raises(ValueError) as info:
+            model.trainer()
+        expected = "No training data provided"
+        assert expected in str(info.value)
+        assert model._is_trained is False
+        assert model._model._trained is False
+
+    def test_train(self, get_data, set_model):
         """Test the training method"""
-        pass
+        data = get_data
+        model = set_model
+        assert model._is_trained is False
+        model.trainer(*data.train_data, epochs=1)
+        assert model._model._model is not None
+        assert model._is_trained is True
+        assert model._model._trained is True
+        assert model._model._model.state_dict() is not None
+
+    def test_model_trained(self, get_data, set_model):
+        """Test if model is trained already"""
+        data = get_data
+        model = set_model
+        model.trainer(*data.train_data, epochs=1)
+        assert model._is_trained is True
+        with pytest.raises(ValueError) as info:
+            model.trainer(*data.train_data, epochs=1)
+        expected = "Model already trained"
+        assert expected in str(info.value)
 
 
 class TestEvaluate:
-    def test_predict(self, get_model):
+    """Test the evaluate method"""
+
+    def test_predict(self, get_trained_model, get_data):
         """Test the predict method"""
+        model = get_trained_model
+        test_data = get_data.val_data[0]
+        assert len(model.predict(test_data)) == len(test_data)
+
+    def test_predict_invalid(self, get_model):
         pass
+
+    def test_predict_model_not_trained(self, get_model, get_data):
+        model = get_model
+        data = get_data
+        test_data = data.val_data[0]
+        with pytest.raises(ValueError) as info:
+            model.predict(test_data)
+        expected = "No model set up or loaded"
+        assert expected in str(info.value)
+
+    def test_predictions_in_range(self, get_trained_model, get_data):
+        """Test the predict method"""
+        model = get_trained_model
+        test_data = get_data.val_data[0]
+        predictions = model.predict(test_data)
+        assert all(predictions >= 0)
+        assert all(predictions <= 10)
 
     def test_evaluate(self, get_model):
         """Test the evaluate method"""
         pass
+
+    def test_evaluate_invalid_data(self, get_model):
+        pass
+
+    def test_evaluate_model_not_trained(self, get_model, get_data):
+        model = get_model
+        data = get_data
+        test_data = data.val_data
+        with pytest.raises(ValueError) as info:
+            model.evaluate(*test_data)
+        expected = "No model set up or loaded"
+        assert expected in str(info.value)
+
+    def test_evaluate_model_trained(self, get_trained_model, get_data):
+        model = get_trained_model
+        data = get_data
+        test_data = data.val_data
+        assert model.evaluate(*test_data) is not None
+        evals = model.evaluate(*test_data)
+        assert isinstance(evals, dict)
+        assert all(i in evals for i in ["accuracy", "predictions", "loss"])
+        assert len(evals["predictions"]) == len(test_data[0])
+        assert evals["accuracy"] >= 0 and evals["accuracy"] <= 1
+        assert evals["loss"] >= 0
+        assert np.array_equal(evals["predictions"], model.predict(test_data[0]))
