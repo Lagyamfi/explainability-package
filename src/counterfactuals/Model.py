@@ -99,7 +99,7 @@ class Model(BaseModel):
             self._is_trained = False
             raise e
 
-    def predict(self, data: pd.DataFrame) -> pd.DataFrame:
+    def predict(self, data: pd.DataFrame, **kwargs) -> pd.DataFrame:
         """
         Predict the labels for the data
         Parameters
@@ -109,7 +109,7 @@ class Model(BaseModel):
         -------
         pd.DataFrame : the predictions
         """
-        return self._model.predict(data)
+        return self._model.predict(data, **kwargs)
 
     def evaluate(self, data: pd.DataFrame, labels: pd.DataFrame) -> None:
         """

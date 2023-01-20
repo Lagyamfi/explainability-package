@@ -23,11 +23,20 @@ class DiceExplainer(BaseExplainer):
 
     def _prep_model(self, **kwargs):
         # TODO: fix backend return value
+        backend_map = {"pytorch": "PYT"}
+        backend = kwargs.pop("backend", "pytorch")
+        backend = backend_map.get(backend, backend)
         model_dice = dice_ml.Model(
-            model=self.ml_model._model, backend="PYT", model_type="classifier"
+            model=self.ml_model._model._model,
+            backend=backend,
+            model_type="classifier",
+            func=kwargs.pop("func", None),
         )
         explainer = dice_ml.Dice(
-            self.explainer_data, model_dice, method="random", **kwargs
+            self.explainer_data,
+            model_dice,
+            method=kwargs.pop("method", "random"),
+            **kwargs,
         )
         self._explainer_model = explainer
 
@@ -48,12 +57,12 @@ class DiceExplainer(BaseExplainer):
 
     def get_counterfactuals(self, query_instance=None, total_CFs=1, **kwargs):
         if self._explainer_model is None:
-            self._prep_model()
+            raise ValueError("Explainer model not initialized")
         dice_exp = self._explainer_model.generate_counterfactuals(
             query_instance,
             total_CFs=total_CFs,
-            proximity_weight=2,
-            diversity_weight=5,
+            proximity_weight=kwargs.pop("proximity_weight", 2),
+            diversity_weight=kwargs.pop("diversity_weight", 5),
             posthoc_sparsity_algorithm="binary",
             **kwargs,
         )
@@ -63,7 +72,7 @@ class DiceExplainer(BaseExplainer):
         explainer = {
             "name": self.name,
             "explainer_data": self.explainer_data,
-            "explainer_model": self.explainer_model,
+            "explainer_model": self._explainer_model,
         }
         return explainer
 

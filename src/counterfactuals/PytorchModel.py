@@ -4,6 +4,7 @@ from typing import Optional, Union, Any, List, Tuple, Dict
 import pandas as pd
 import numpy as np
 import torch
+import torch.nn as nn
 from sklearn.metrics import accuracy_score
 
 from counterfactuals import Model
@@ -48,9 +49,9 @@ class PytorchModel(BaseModel):
 
     def set_up(
         self,
-        input_dim: int,
+        input_dim: Union[int, Tuple[int, int]],
         *args: Optional[List[int]],
-        output_dim: int = 10,
+        output_dim: int = 2,
         model_type: str = "MLP",
     ) -> None:
         """
@@ -62,14 +63,16 @@ class PytorchModel(BaseModel):
         output_dim (int) : the output dimension
         """
         # TODO: add more model types or define in constants file
+        if self._model is not None:
+            raise ValueError("Model already set up")
         assert model_type in [
             "MLP",
             "CNN",
         ], f"Invalid model type : {model_type!r}, must be MLP or CNN"
-        if model_type == "MLP":
+        if model_type == "MLP" and isinstance(input_dim, int):
             self._model = MLP(input_dim, *args, output_dim=output_dim, name=self.name)
-        elif model_type == "CNN":
-            raise NotImplementedError("CNN not implemented")
+        elif model_type == "CNN" and isinstance(input_dim, tuple):
+            self._model = CNN(input_dim, output_dim=output_dim, name=self.name)
         else:
             raise ValueError(f"Invalid model type {model_type!r}")
 
@@ -79,6 +82,7 @@ class PytorchModel(BaseModel):
         train_labels: pd.DataFrame = None,
         val_data: Optional[pd.DataFrame] = None,
         val_labels: Optional[pd.DataFrame] = None,
+        retrain: bool = False,
         **kwargs,
     ) -> None:
         """
@@ -97,7 +101,7 @@ class PytorchModel(BaseModel):
             raise ValueError("No model set up or loaded")
         if (train_data is None) and (train_labels is None):
             raise ValueError("No training data provided")
-        if self._trained:
+        if self._trained and not retrain:
             raise ValueError("Model already trained")
         try:
             self._model.train_model(
@@ -194,7 +198,7 @@ class MLP(torch.nn.Module):
 
     @staticmethod
     def get_loader(
-        data: pd.DataFrame, labels: pd.DataFrame, batch_size: int
+        data: Union[pd.DataFrame, np.ndarray], labels: pd.DataFrame, batch_size: int
     ) -> torch.utils.data.DataLoader:
         """
         Get a data loader for the data
@@ -207,7 +211,9 @@ class MLP(torch.nn.Module):
         -------
         torch.utils.data.DataLoader : the data loader
         """
-        data = torch.tensor(data.values, dtype=torch.float32)
+        if isinstance(data, pd.DataFrame):
+            data = data.values
+        data = torch.tensor(data, dtype=torch.float32)
         labels = torch.tensor(labels.values, dtype=torch.long)
         dataset = torch.utils.data.TensorDataset(data, labels)
         loader = torch.utils.data.DataLoader(
@@ -305,9 +311,15 @@ class MLP(torch.nn.Module):
         -------
         np.ndarray : the predictions
         """
-        data = torch.tensor(data.values, dtype=torch.float32)
-        y_pred = torch.max(self(data), dim=-1)
-        return y_pred[1].detach().numpy()
+        self.eval()
+        if isinstance(data, pd.DataFrame):
+            data = data.values
+        if isinstance(data, torch.Tensor):
+            data = data.detach().numpy()
+        data = torch.tensor(data, dtype=torch.float32)
+        y_pred = torch.max(self(data), dim=-1, keepdim=True)
+        # return y_pred[1].detach().numpy()
+        return y_pred[1]
 
     def evaluate(
         self, data: pd.DataFrame, labels: pd.DataFrame
@@ -322,10 +334,154 @@ class MLP(torch.nn.Module):
         -------
         Tuple[float, np.ndarray, float] : the accuracy, predictions, and loss
         """
-        data = torch.tensor(data.values, dtype=torch.float32)
+        self.eval()
+        if isinstance(data, pd.DataFrame):
+            data = data.values
+        data = torch.tensor(data, dtype=torch.float32)
         labels = torch.tensor(labels.values, dtype=torch.long)
         y_pred = self(data)
         loss = float(self.loss_fn(y_pred, labels).detach())
-        y_pred = torch.max(y_pred, dim=1)
+        y_pred = torch.max(y_pred, dim=1, keepdim=True)
         accuracy = accuracy_score(labels, y_pred[1])
         return accuracy, y_pred[1].detach().numpy(), loss
+
+
+class CNN(MLP):
+    """
+    A simple CNN model
+    """
+
+    def __init__(
+        self,
+        input_dim: Tuple[int, int] = (1, 32),
+        hidden_dim: Optional[Tuple[int, ...]] = None,
+        output_dim: int = 10,
+        name: str = "",
+    ) -> None:
+        """
+        Initialize the model
+        Parameters
+        ----------
+        input_dim (Tuple[int, int, int]) : the input dimension
+        *hidden_dim (Any) : the hidden dimensions
+        output_dim (int) : the output dimension
+        """
+        super().__init__(input_dim[0], output_dim=output_dim, name=name)
+        # TODO: make this more flexible and not hardcode the layers
+        self.conv_block = nn.Sequential(
+            nn.Conv2d(input_dim[0], input_dim[1], kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(input_dim[1]),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(input_dim[1], 64, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+        self.loss_fn = torch.nn.CrossEntropyLoss()
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
+
+        self.linear_block = nn.Sequential(
+            nn.Dropout(p=0.5),
+            nn.Linear(128 * 7 * 7, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(128, 64),
+            nn.BatchNorm1d(64),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(64, output_dim),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass
+        Parameters
+        ----------
+        x (torch.Tensor) : the input
+        Returns
+        -------
+        torch.Tensor : the output
+        """
+        x = self.conv_block(x)
+        x = x.view(x.size(0), -1)
+        x = self.linear_block(x)
+        return x
+
+    def train_model(
+        self,
+        train_x: pd.DataFrame,
+        train_y: pd.DataFrame,
+        val_x: Optional[pd.DataFrame] = None,
+        val_y: Optional[pd.DataFrame] = None,
+        epochs: int = 10,
+        lr: float = 0.001,
+        batch_size: int = 64,
+        verbose: bool = True,
+    ) -> None:
+        """
+        Train the model
+        Parameters
+        ----------
+        train_x (pd.DataFrame) : the training data
+        train_y (pd.DataFrame) : the training labels
+        val_x (pd.DataFrame) : the validation data
+        val_y (pd.DataFrame) : the validation labels
+        lr (float) : the learning rate
+        epochs (int) : the number of epochs
+        batch_size (int) : the batch size
+        verbose (bool) : whether to print the loss
+        """
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
+        self.loss_fn = torch.nn.CrossEntropyLoss()
+        # reshape the data to be (batch_size, channels, height, width)
+        train_x = train_x.values.reshape(-1, 1, 28, 28)
+        if not ((val_x is None) or (val_y is None)):
+            val_x = val_x.values.reshape(-1, 1, 28, 28)
+        super().train_model(
+            train_x,
+            train_y,
+            val_x,
+            val_y,
+            epochs,
+            lr,
+            batch_size,
+            verbose,
+        )
+
+    def predict(self, data: pd.DataFrame) -> np.ndarray:
+        """
+        Predict on the data
+        Parameters
+        ----------
+        data (pd.DataFrame) : the data to predict on
+        Returns
+        -------
+        np.ndarray : the predictions
+        """
+        if isinstance(data, pd.DataFrame):
+            data = data.values
+        data = data.reshape(-1, 1, 28, 28)
+        return super().predict(data)
+
+    def evaluate(
+        self, data: Union[pd.DataFrame, np.ndarray], labels: pd.DataFrame
+    ) -> Tuple[float, np.ndarray, float]:
+        """
+        Evaluate the model
+        Parameters
+        ----------
+        data (pd.DataFrame) : the data
+        labels (pd.DataFrame) : the labels
+        Returns
+        -------
+        Tuple[float, np.ndarray, float] : the accuracy, predictions, and loss
+        """
+        if isinstance(data, pd.DataFrame):
+            data = data.values
+        data = data.reshape(-1, 1, 28, 28)
+        return super().evaluate(data, labels)
