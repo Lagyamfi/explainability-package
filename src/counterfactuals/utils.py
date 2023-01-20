@@ -15,7 +15,10 @@ from sklearn.model_selection import train_test_split
 
 
 def prep_data(
-    dataframe: pd.DataFrame, target: str = "", split: bool = False
+    dataframe: pd.DataFrame,
+    target: str = "",
+    split: bool = False,
+    reshape: bool = False,
 ) -> List[Any]:
 
     """
@@ -38,13 +41,21 @@ def prep_data(
     """
 
     labels = dataframe.loc[:, target]
-    input_x = dataframe.iloc[:, 1:] / 255.0
+    input_x = dataframe.drop(target, axis=1) / 255.0
     if split:
         # training and validation split
         train_val_data = train_test_split(
             input_x, labels, stratify=labels, random_state=123, test_size=0.20
         )
+        if reshape:
+            train_val_data = [
+                data.values.reshape(-1, 28, 28) for data in train_val_data
+            ]
         return train_val_data
+
+    if reshape:
+        input_x = input_x.values.reshape(-1, 28, 28)
+
     return [input_x, labels]
 
 
