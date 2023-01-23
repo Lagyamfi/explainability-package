@@ -1,9 +1,9 @@
 from pathlib import Path
-from typing import Optional, List, Union, overload, Any, Tuple
+from typing import Any, List, Optional, Tuple, Union, overload
 
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from sklearn.decomposition import PCA
+from sklearn.model_selection import train_test_split
 
 
 class Data:

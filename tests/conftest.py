@@ -1,10 +1,10 @@
 from pathlib import Path
 from unittest import mock
 
-import pytest
-from counterfactuals import Data
-from counterfactuals import Model
 import pandas as pd
+import pytest
+
+from counterfactuals import Data, Model
 
 
 @pytest.fixture(name="get_dataframe", scope="module")
