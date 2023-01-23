@@ -1,15 +1,15 @@
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
-import pytest
-import pandas as pd
 import numpy as np
+import pandas as pd
+import pytest
 import torch
 
-from counterfactuals import Model, Data
+from counterfactuals import Data, Model
 from counterfactuals.PytorchModel import PytorchModel
-from counterfactuals.TensorflowModel import TensorflowModel
 from counterfactuals.SklearnModel import SklearnModel
+from counterfactuals.TensorflowModel import TensorflowModel
 
 
 class TestInitialize:

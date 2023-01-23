@@ -1,8 +1,8 @@
-from counterfactuals.BaseExplainer import BaseExplainer
-from counterfactuals import utils
-
 import dice_ml
 import pandas as pd
+
+from counterfactuals import utils
+from counterfactuals.BaseExplainer import BaseExplainer
 
 
 class DiceExplainer(BaseExplainer):

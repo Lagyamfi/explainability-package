@@ -1,11 +1,11 @@
 from pathlib import Path
-from typing import Optional, List, overload, Union, Any, Type
+from typing import Any, List, Optional, Type, Union, overload
 
 import pandas as pd
 import sklearn
 
-from counterfactuals.constants import Backend
 from counterfactuals.BaseModel import BaseModel
+from counterfactuals.constants import Backend
 
 
 class Model(BaseModel):

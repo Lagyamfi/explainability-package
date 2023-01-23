@@ -12,6 +12,10 @@ repos:
     rev: 22.10.0  # must match test-requirements.txt
     hooks:
       - id: black
+-   repo: https://github.com/PyCQA/isort
+    rev: 5.11.4  # must match test-requirements.txt
+    hooks:
+      - id: isort
 -   repo: https://github.com/pre-commit/mirrors-mypy
     rev: v0.991  # Use the sha / tag you want to point at
     hooks:

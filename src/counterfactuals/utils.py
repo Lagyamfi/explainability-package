@@ -1,7 +1,7 @@
 # import python standard libraries
 import json
-from typing import Optional, Callable, Any, List, Tuple
 from functools import wraps
+from typing import Any, Callable, List, Optional, Tuple
 
 # import 3rd party libraries
 import dice_ml

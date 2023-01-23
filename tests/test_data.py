@@ -1,8 +1,8 @@
 from pathlib import Path
 from unittest import mock
 
-import pytest
 import pandas as pd
+import pytest
 
 from counterfactuals.Data import Data
 

@@ -1,16 +1,16 @@
-from pathlib import Path
 import abc
-from typing import Optional, List, overload, Union
 import enum
+from pathlib import Path
+from typing import List, Optional, Union, overload
 
 import pandas as pd
 import sklearn
-from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.svm import NuSVC
+from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.tree import DecisionTreeClassifier
 from sklearn.neural_network import MLPClassifier
+from sklearn.svm import NuSVC
+from sklearn.tree import DecisionTreeClassifier
 
 from counterfactuals.BaseModel import BaseModel
 
