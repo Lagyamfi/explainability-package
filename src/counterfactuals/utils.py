@@ -172,7 +172,7 @@ def plotter(ax, data, **param_dict):
     return out
 
 
-def plot_counterfactuals(explainer, pca=None, id=0) -> None:
+def plot_counterfactuals(explainer, pca=None, id=0, **kwargs) -> None:
     """
     Plot the query and the resulting counterfactuals
     Parameters
@@ -201,7 +201,7 @@ def plot_counterfactuals(explainer, pca=None, id=0) -> None:
         query_x = pca.inverse_transform(np.array(query[0])[:-1])
     else:
         query_x = np.array(query[0])[:-1]
-    plotter(ax[0], query_x)  # exluding the label
+    plotter(ax[0], query_x, **kwargs)  # exluding the label
 
     # plot all the counterfactuals
     for idx, img_data in enumerate(cfs, start=1):
@@ -211,6 +211,7 @@ def plot_counterfactuals(explainer, pca=None, id=0) -> None:
         plotter(
             ax[idx],
             data,
+            **kwargs,
         )
 
 
