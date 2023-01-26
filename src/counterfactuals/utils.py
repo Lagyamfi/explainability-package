@@ -1,5 +1,6 @@
 # import python standard libraries
 import json
+import pickle
 from functools import wraps
 from typing import Any, Callable, List, Optional, Tuple
 
@@ -8,6 +9,10 @@ import dice_ml
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
+import torch
+import umap
+import wandb
 from dice_ml.utils import helpers  # helper functions
 from sklearn import metrics
 from sklearn.decomposition import PCA
@@ -167,7 +172,7 @@ def plotter(ax, data, **param_dict):
     return out
 
 
-def plot_counterfactuals(explainer, pca=None) -> None:
+def plot_counterfactuals(explainer, pca=None, id=0) -> None:
     """
     Plot the query and the resulting counterfactuals
     Parameters
@@ -184,8 +189,8 @@ def plot_counterfactuals(explainer, pca=None) -> None:
 
     # serialize data from explainer for visualization
     results = json.loads(explainer.to_json())
-    query = results["test_data"][0]
-    cfs = results["cfs_list"][0]
+    query = results["test_data"][id]
+    cfs = results["cfs_list"][id]
 
     # set up plot
     n_cols = len(cfs) + 1
@@ -225,7 +230,7 @@ def plot_digits(data, pca=None, n_rows: int = 4, n_cols: int = 4):
             break
         if pca:
             to_draw = pca.inverse_transform(to_draw)
-        ax.imshow(to_draw.reshape(28, 28), cmap="binary", interpolation="nearest")
+        ax.imshow(to_draw.reshape(28, 28), cmap="gray", vmin=0, vmax=255)
 
 
 def plot_difference(
@@ -338,3 +343,195 @@ def conf_matrix(function: Callable[..., Any]) -> Callable[..., Any]:
         disp.figure_.suptitle("Confusion Matrix")
 
     return wrapper
+
+
+def data_umap(path, id, dir_name="exp_4_full_exp"):
+    with open(path / f"exp_4_full_exp_{id}.p", "rb") as f:
+        exp_4 = pickle.load(f)
+
+    with open(path / f"exp_9_full_exp_{id}.p", "rb") as f:
+        exp_9 = pickle.load(f)
+
+    ml_model = torch.load(path / f"model_exp_{id}.pt")
+
+    data_cf_4 = [
+        data.final_cfs_df.drop("label", axis=1).values
+        for data in exp_4.cf_examples_list
+    ]
+    data_instance_4 = [
+        data.test_instance_df.drop("label", axis=1).values
+        for data in exp_4.cf_examples_list
+    ]
+    df_4 = pd.DataFrame([data.squeeze() for data in data_instance_4])
+    df_4["label"] = 4
+    df_4["preds"] = ml_model.predict(df_4.drop("label", axis=1))
+    df_4["norms"] = [
+        np.linalg.norm(data_instance_4[i] - data_cf_4[i].mean(axis=0), 2)
+        for i in range(len(data_instance_4))
+    ]
+
+    data_cf_9 = [
+        data.final_cfs_df.drop("label", axis=1).values
+        for data in exp_9.cf_examples_list
+    ]
+    data_instance_9 = [
+        data.test_instance_df.drop("label", axis=1).values
+        for data in exp_9.cf_examples_list
+    ]
+    df_9 = pd.DataFrame([data.squeeze() for data in data_instance_9])
+    df_9["label"] = 9
+    df_9["preds"] = ml_model.predict(df_9.drop("label", axis=1))
+    df_9["norms"] = [
+        np.linalg.norm(data_instance_9[i] - data_cf_9[i].mean(axis=0), 2)
+        for i in range(len(data_instance_9))
+    ]
+
+    df = pd.concat([df_4, df_9])
+    # data_cf = data_cf_4 + data_cf_9
+    return df
+
+
+def get_embedding(
+    dataframe,
+    n_cols=None,
+    parametric=None,
+    pca=None,
+    log=None,
+    n_neighbors=4,
+    min_dist=0.2,
+    verbose=False,
+    **kwargs,
+):
+    assert n_cols is not None, "Must specify n_cols"
+    data = dataframe.iloc[:, :n_cols]
+
+    # log to wandb
+    if log:
+        n_neighbors = wandb.config.n_neighbors
+        min_dist = wandb.config.min_dist
+        metric = wandb.config.dist_metric
+
+    # parametric
+    if parametric:
+        embedder = umap.ParametricUMAP(n_epochs=50, verbose=verbose, **kwargs).fit(data)
+        embedding = embedder.transform(data)
+    # pca
+    else:
+        embedder = umap.UMAP(
+            n_neighbors=n_neighbors,
+            min_dist=min_dist,
+            n_components=2,
+            random_state=42,
+            **kwargs,
+        ).fit(data)
+        embedding = embedder.transform(data)
+
+    df_new = pd.DataFrame(embedding, columns=["x", "y"])
+    df_new["norms"] = dataframe["norms"].values
+    df_new["label"] = dataframe["label"].values
+    df_new["preds"] = dataframe["preds"].values
+
+    return embedder, df_new
+
+
+def draw_umap(dataframe, log=None, hist_func="avg", nbins=5, histnorm="percent"):
+    norms = dataframe["norms"]
+    labels = dataframe["label"]
+    preds = dataframe["preds"]
+    diff = dataframe[dataframe["label"] != dataframe["preds"]]
+
+    SYMBOLS = {
+        "4": ["red", "star"],
+        "9": [
+            "green",
+            "diamond",
+        ],
+    }
+
+    if log:
+        hist_func = wandb.config.hist_func
+        n_neighbors = wandb.config.n_neighbors
+        metric = wandb.config.dist_metric
+        min_dist = wandb.config.min_distdata_exp_4
+    else:
+        hist_func = hist_func
+        n_neighbors = 5
+        metric = "euclidean"
+        min_dist = 0.2
+
+    customdata = pd.DataFrame(
+        {"norms": norms, "labels": labels, "preds": preds, "index": dataframe.index}
+    )
+
+    fig = go.Figure()
+
+    # draw the contour plot with norms as the z axis
+    fig.add_trace(
+        go.Histogram2dContour(
+            x=dataframe.x,
+            y=dataframe.y,
+            z=norms,
+            nbinsx=nbins,
+            nbinsy=nbins,
+            histfunc=hist_func,
+            histnorm=histnorm,
+            colorscale="jet",
+            name="norms",
+            colorbar=dict(title="norms"),
+            hoverinfo="skip",
+            contours=dict(showlabels=True),
+        )
+    )
+
+    # draw the scatter plot with labels as the color
+    for label in dataframe.label.unique():
+        fig.add_trace(
+            go.Scatter(
+                x=dataframe[dataframe.label == label].x,
+                y=dataframe[dataframe.label == label].y,
+                mode="markers",
+                marker=dict(
+                    size=5, symbol=SYMBOLS[str(label)][1], color=SYMBOLS[str(label)][0]
+                ),
+                name=str(label),
+                customdata=customdata[customdata["labels"] == label],
+                hovertemplate="<b> norm: %{customdata[0]:.3f} <br>class: %{customdata[1]}<br>preds: %{customdata[2]} <br>index: %{customdata[3]}",
+            )
+        )
+
+    # draw the misclassified points
+    fig.add_trace(
+        go.Scatter(
+            x=diff.x,
+            y=diff.y,
+            mode="markers",
+            marker=dict(color="red", size=10, symbol="circle-open"),
+            name="Misclassified",
+            # customdata=diff,
+            customdata=pd.DataFrame(
+                {
+                    "norms": diff.norms,
+                    "labels": diff.label,
+                    "preds": diff.preds,
+                    "index": diff.index,
+                }
+            ),
+            hovertemplate="<b> norm: %{customdata[0]:.3f} <br>class: %{customdata[1]}<br>preds: %{customdata[2]} <br>index: %{customdata[3]}",
+        )
+    )
+
+    fig.update_layout(
+        title=f"{n_neighbors=}, {min_dist=}, {metric=}, {hist_func=}",
+        xaxis=dict(ticks="", showgrid=True, zeroline=True, nticks=10),
+        yaxis=dict(ticks="", showgrid=False, zeroline=True, nticks=10),
+        autosize=True,
+        height=600,
+        width=700,
+        hovermode="closest",
+        margin_pad=5,
+        margin=dict(l=5, r=5, pad=5),
+        hoverlabel=dict(bgcolor="white", font_size=16, font_family="Rockwell"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        showlegend=True,
+    )
+    return fig
