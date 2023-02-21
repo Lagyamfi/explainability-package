@@ -1,7 +1,9 @@
 # import python standard libraries
 import json
+import os
 import pickle
 from functools import wraps
+from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple
 
 # import 3rd party libraries
@@ -10,13 +12,28 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.io as pio
 import torch
 import umap
 import wandb
 from dice_ml.utils import helpers  # helper functions
+from scipy.spatial.distance import cosine, mahalanobis
 from sklearn import metrics
 from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
+
+MAIN_DIR = Path.cwd().parent
+IMG_SAVE_DIR = MAIN_DIR / "results" / "plots"
+
+ALGORITHMS = [
+    "Random Forest",
+    "Logistic Regression",
+    "MLP (sklearn)",
+    "Decision Tree",
+    "KNN",
+    "MLP(Pytorch - Gradient CFs",
+    "MLP(Pytorch - Random CFs",
+]
 
 
 def prep_data(
@@ -193,26 +210,37 @@ def plot_counterfactuals(explainer, pca=None, id=0, **kwargs) -> None:
     cfs = results["cfs_list"][id]
 
     # set up plot
-    n_cols = len(cfs) + 1
-    fig, ax = plt.subplots(1, n_cols, figsize=(2 * n_cols, 2))
+    n_cols = len(cfs) + 2
+    fig, ax = plt.subplots(1, n_cols, figsize=(3 * n_cols, 2))
 
-    # plot the query
+    # plot the query and average image
+    query_x = np.array(query[0])[:-1]
+    avg_cf = np.array(cfs).mean(axis=0)[:-1]
     if pca:
-        query_x = pca.inverse_transform(np.array(query[0])[:-1])
-    else:
-        query_x = np.array(query[0])[:-1]
+        query_x = pca.inverse_transform(query_x)
+        avg_cf = pca.inverse_transform(avg_cf)
+
     plotter(ax[0], query_x, **kwargs)  # exluding the label
+    ax[0].set_title("query")
+    plotter(ax[1], avg_cf, **kwargs)
+    norm_avg = np.linalg.norm((query_x - avg_cf))
+    ax[1].set_title(f"avg CF: {norm_avg:.1f}")
 
     # plot all the counterfactuals
-    for idx, img_data in enumerate(cfs, start=1):
+    for idx, img_data in enumerate(
+        cfs,
+        start=2,
+    ):
         data = np.array(img_data)[:-1]
         if pca:
             data = pca.inverse_transform(data)
+        norm = np.linalg.norm((data - query_x))
         plotter(
             ax[idx],
             data,
             **kwargs,
         )
+        ax[idx].set_title(f"norm: {norm:.1f}")
 
 
 def plot_digits(data, pca=None, n_rows: int = 4, n_cols: int = 4):
@@ -277,9 +305,7 @@ def plot_difference(
         to_draw = data_1 - data_2
     # find difference between two images
 
-    c = ax.imshow(
-        to_draw.reshape(28, 28), cmap="viridis", interpolation="nearest", vmin=0
-    )
+    c = ax.imshow(to_draw.reshape(28, 28), **kwargs)
     fig.colorbar(c, ax=ax)
     difference = np.linalg.norm(to_draw)
     if return_diff:
@@ -346,14 +372,16 @@ def conf_matrix(function: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-def data_umap(path, id, dir_name="exp_4_full_exp"):
-    with open(path / f"exp_4_full_exp_{id}.p", "rb") as f:
+def data_umap(path, id, is_torch=False, return_exp=False):
+    with open(path / "exp_0_full.pkl", "rb") as f:
         exp_4 = pickle.load(f)
 
-    with open(path / f"exp_9_full_exp_{id}.p", "rb") as f:
+    with open(path / "exp_1_full.pkl", "rb") as f:
         exp_9 = pickle.load(f)
-
-    ml_model = torch.load(path / f"model_exp_{id}.pt")
+    if is_torch:
+        ml_model = torch.load(path / "model.pt")
+    else:
+        ml_model = pickle.load(open(path / "model.pkl", "rb"))
 
     data_cf_4 = [
         data.final_cfs_df.drop("label", axis=1).values
@@ -366,8 +394,17 @@ def data_umap(path, id, dir_name="exp_4_full_exp"):
     df_4 = pd.DataFrame([data.squeeze() for data in data_instance_4])
     df_4["label"] = 4
     df_4["preds"] = ml_model.predict(df_4.drop("label", axis=1))
-    df_4["norms"] = [
-        np.linalg.norm(data_instance_4[i] - data_cf_4[i].mean(axis=0), 2)
+    # change from (0 and 1) to (4 and 9)
+    df_4["preds"] = df_4["preds"].apply(lambda x: 4 if x == 0 else 9)
+    # df_4['norms'] = [np.linalg.norm(data_instance_4[i] - data_cf_4[i].mean(axis=0), 2) for i in range(len(data_instance_4))]
+    difference = [
+        data_instance_4[i] - data_cf_4[i].mean(axis=0)
+        for i in range(len(data_instance_4))
+    ]
+    df_4["norms"] = [np.linalg.norm(diff, 2) for diff in difference]
+    df_4["hamming"] = [np.linalg.norm(diff, 1) for diff in difference]
+    df_4["cosine"] = [
+        cosine(data_instance_4[i].squeeze(), data_cf_4[i].mean(axis=0).squeeze())
         for i in range(len(data_instance_4))
     ]
 
@@ -382,14 +419,25 @@ def data_umap(path, id, dir_name="exp_4_full_exp"):
     df_9 = pd.DataFrame([data.squeeze() for data in data_instance_9])
     df_9["label"] = 9
     df_9["preds"] = ml_model.predict(df_9.drop("label", axis=1))
-    df_9["norms"] = [
-        np.linalg.norm(data_instance_9[i] - data_cf_9[i].mean(axis=0), 2)
+    df_9["preds"] = df_9["preds"].apply(lambda x: 9 if x == 1 else 4)
+    # df_9['norms'] = [np.linalg.norm(data_instance_9[i] - data_cf_9[i].mean(axis=0), 2) for i in range(len(data_instance_9))]
+    difference = [
+        data_instance_9[i] - data_cf_9[i].mean(axis=0)
+        for i in range(len(data_instance_9))
+    ]
+    df_9["norms"] = [np.linalg.norm(diff, 2) for diff in difference]
+    df_9["hamming"] = [np.linalg.norm(diff, 1) for diff in difference]
+    df_9["cosine"] = [
+        cosine(data_instance_9[i].squeeze(), data_cf_9[i].mean(axis=0).squeeze())
         for i in range(len(data_instance_9))
     ]
 
     df = pd.concat([df_4, df_9])
-    # data_cf = data_cf_4 + data_cf_9
-    return df
+
+    if return_exp:
+        return df, ml_model, exp_4, exp_9
+
+    return df, ml_model
 
 
 def get_embedding(
@@ -435,8 +483,17 @@ def get_embedding(
     return embedder, df_new
 
 
-def draw_umap(dataframe, log=None, hist_func="avg", nbins=5, histnorm="percent"):
-    norms = dataframe["norms"]
+def draw_umap(
+    dataframe,
+    embedder,
+    log=None,
+    hist_func="avg",
+    nbins=5,
+    histnorm="percent",
+    distance="norms",
+    **kwargs,
+):
+    norms = dataframe[distance]
     labels = dataframe["label"]
     preds = dataframe["preds"]
     diff = dataframe[dataframe["label"] != dataframe["preds"]]
@@ -454,11 +511,13 @@ def draw_umap(dataframe, log=None, hist_func="avg", nbins=5, histnorm="percent")
         n_neighbors = wandb.config.n_neighbors
         metric = wandb.config.dist_metric
         min_dist = wandb.config.min_distdata_exp_4
+        algorithm = wandb.config.algorithm
     else:
         hist_func = hist_func
-        n_neighbors = 5
-        metric = "euclidean"
-        min_dist = 0.2
+        n_neighbors = embedder.n_neighbors
+        metric = embedder.metric
+        min_dist = embedder.min_dist
+        algorithm = kwargs.get("algorithm", None)
 
     customdata = pd.DataFrame(
         {"norms": norms, "labels": labels, "preds": preds, "index": dataframe.index}
@@ -484,21 +543,24 @@ def draw_umap(dataframe, log=None, hist_func="avg", nbins=5, histnorm="percent")
         )
     )
 
-    # draw the scatter plot with labels as the color
-    for label in dataframe.label.unique():
-        fig.add_trace(
-            go.Scatter(
-                x=dataframe[dataframe.label == label].x,
-                y=dataframe[dataframe.label == label].y,
-                mode="markers",
-                marker=dict(
-                    size=5, symbol=SYMBOLS[str(label)][1], color=SYMBOLS[str(label)][0]
-                ),
-                name=str(label),
-                customdata=customdata[customdata["labels"] == label],
-                hovertemplate="<b> norm: %{customdata[0]:.3f} <br>class: %{customdata[1]}<br>preds: %{customdata[2]} <br>index: %{customdata[3]}",
+    if not kwargs.get("only_mis", False):
+        # draw the scatter plot with labels as the color
+        for label in dataframe.label.unique():
+            fig.add_trace(
+                go.Scatter(
+                    x=dataframe[dataframe.label == label].x,
+                    y=dataframe[dataframe.label == label].y,
+                    mode="markers",
+                    marker=dict(
+                        size=5,
+                        symbol=SYMBOLS[str(label)][1],
+                        color=SYMBOLS[str(label)][0],
+                    ),
+                    name=str(label),
+                    customdata=customdata[customdata["labels"] == label],
+                    hovertemplate="<b> norm: %{customdata[0]:.3f} <br>class: %{customdata[1]}<br>preds: %{customdata[2]} <br>index: %{customdata[3]}",
+                )
             )
-        )
 
     # draw the misclassified points
     fig.add_trace(
@@ -522,7 +584,7 @@ def draw_umap(dataframe, log=None, hist_func="avg", nbins=5, histnorm="percent")
     )
 
     fig.update_layout(
-        title=f"{n_neighbors=}, {min_dist=}, {metric=}, {hist_func=}",
+        title=f"{n_neighbors=}, {metric=}, {hist_func=}, {algorithm=!r}",
         xaxis=dict(ticks="", showgrid=True, zeroline=True, nticks=10),
         yaxis=dict(ticks="", showgrid=False, zeroline=True, nticks=10),
         autosize=True,
@@ -536,3 +598,136 @@ def draw_umap(dataframe, log=None, hist_func="avg", nbins=5, histnorm="percent")
         showlegend=True,
     )
     return fig
+
+
+def draw_and_save(data_id, embedder, plot_title="test", **kwargs):
+    embedding = eval(f"embedding_{data_id}")
+    kwargs.update({"algorithm": ALGORITHMS[data_id - 1]})
+    f = draw_umap(embedding, embedder, **kwargs)
+    IMG_DIR = str(IMG_SAVE_DIR) + f"/{plot_title}"
+    if not os.path.exists(IMG_DIR):
+        os.makedirs(IMG_DIR)
+    filename = kwargs.get("algorithm", None)
+    if kwargs.get("only_mis", False):
+        filename = f"mis_{filename}"
+    pio.write_image(f, f"{IMG_DIR}/{filename}.png", format="png")
+
+
+def get_embedding_2(
+    dataframe,
+    n_cols=None,
+    parametric=None,
+    pca=None,
+    log=None,
+    n_neighbors=4,
+    min_dist=0.2,
+    verbose=False,
+    only_emb=False,
+    **kwargs,
+):
+    assert n_cols is not None, "Must specify n_cols"
+    data = dataframe.iloc[:, :n_cols]
+
+    # log to wandb
+    if log:
+        n_neighbors = wandb.config.n_neighbors
+        min_dist = wandb.config.min_dist
+        metric = wandb.config.dist_metric
+
+    # parametric
+    if parametric:
+        embedder = get_embedder(
+            data, parametric=True, n_epochs=50, verbose=verbose, **kwargs
+        )
+        embedding = embedder.transform(data)
+
+    # pca
+    else:
+        embedder = get_embedder(
+            data,
+            n_neighbors=n_neighbors,
+            min_dist=min_dist,
+            n_components=2,
+            random_state=42,
+            **kwargs,
+        )
+        embedding = embedder.transform(data)
+
+    if only_emb:
+        return embedding, embedder
+
+    df_new = update_embedding(embedding, dataframe)
+
+    return embedder, df_new
+
+
+def get_embedder(data, parametric=None, **params):
+    if parametric:
+        embedder = umap.ParametricUMAP(**params).fit(data)
+    else:
+        embedder = umap.UMAP(**params).fit(data)
+    return embedder
+
+
+def update_embedding(embedding, dataframe, embedder=None, n_cols=None):
+    if embedder:
+        assert n_cols is not None, "Must specify n_cols"
+        embedding = embedder.transform(dataframe.iloc[:, :n_cols])
+    df_new = pd.DataFrame(embedding, columns=["x", "y"])
+    df_new["norms"] = dataframe["norms"].values
+    df_new["hamming"] = dataframe["hamming"].values
+    df_new["cosine"] = dataframe["cosine"].values
+    df_new["correlation"] = dataframe["correlation"].values
+    df_new["label"] = dataframe["label"].values
+    df_new["preds"] = dataframe["preds"].values
+
+    return df_new
+
+
+def get_cfs(exp, idx, embedder=None):
+    cfs = [
+        data.final_cfs_df.drop("label", axis=1).values for data in exp.cf_examples_list
+    ][idx]
+    query = [
+        data.test_instance_df.drop("label", axis=1).values
+        for data in exp.cf_examples_list
+    ][idx]
+    if embedder:
+        # data = [np.expand_dims(cf, 0) for cf in cfs]
+        embedding_cf = embedder.transform(cfs)
+        embedding_query = embedder.transform(query)
+    return embedding_cf, embedding_query
+
+
+# remove other traces and draw CFs of idx
+def draw_cfs(fig, idx, embedder):
+    figure = go.Figure(fig)
+    # get CFs of idx
+    cfs, query = get_cfs(cf_exp_1_4, idx, embedder=embedder)
+    # remove other traces
+    figure.update_traces(visible="legendonly", selector=dict(name="Misclassified"))
+    figure.update_traces(visible="legendonly", selector=dict(name="4"))
+    figure.update_traces(visible="legendonly", selector=dict(name="9"))
+    # figure.update_traces(visible='legendonly', selector=dict(name="CFs"))
+    figure.add_trace(
+        go.Scatter(
+            x=cfs[:, 0],
+            y=cfs[:, 1],
+            mode="markers",
+            marker=dict(color="black", size=10, symbol="circle"),
+            name="CFs",
+            hovertemplate="<b> norm: %{customdata[0]:.3f} <br>class: %{customdata[1]}<br>preds: %{customdata[2]} <br>index: %{customdata[3]}",
+        )
+    )
+    figure.add_trace(
+        go.Scatter(
+            x=query[:, 0],
+            y=query[:, 1],
+            mode="markers",
+            marker=dict(color="red", size=10, symbol="circle"),
+            name="Query",
+            hovertemplate="<b> norm: %{customdata[0]:.3f} <br>class: %{customdata[1]}<br>preds: %{customdata[2]} <br>index: %{customdata[3]}",
+        )
+    )
+
+    return figure
